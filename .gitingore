@@ -1,0 +1,7 @@
+application/
+build_obj/
+.DS_Store
+*.zip
+*.tgz
+*.o
+*.out
