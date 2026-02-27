@@ -55,7 +55,7 @@ char *read_line() {
 char **parse_line(char *line) {
 
     // make copy of line because tokenizing destroys it
-    char *line_copy;
+    char line_copy[MAX_LINE];
     strcpy(line_copy, line);
 
     // initiate tokenization process
@@ -64,6 +64,7 @@ char **parse_line(char *line) {
     // count and store arguments
     int num_args = 0;
     char **args;
+    args = (char **) malloc(MAX_ARGS * sizeof(char *));
 
     while (token != NULL && num_args < MAX_ARGS - 1) {
         // malloc enough space to copy token to args array
@@ -74,7 +75,6 @@ char **parse_line(char *line) {
 
     // terminate with NULL for later readability
     args[num_args] = NULL;
-    free(line_copy); // no longer need the copy
 
     return args;
 }
@@ -92,7 +92,8 @@ char **parse_line(char *line) {
 int is_builtin(const char *command) {
 
     // check command against each builtin
-    for (int i = 0; i < sizeof(builtins) / sizeof(builtins[0]); ++i) {
+    int builtins_size = (int) sizeof(builtins) / sizeof(builtins[0]);
+    for (int i = 0; i < builtins_size; ++i) {
         if (strcmp(command, builtins[i]) == 0) {
             return 1; // is a built-in
         }
@@ -128,15 +129,14 @@ int execute_builtin_command(char **args) {
         if (chdir(path) != 0) { // change directory now
             fprintf(stderr, "myshell: cd: %s: No such file or directory", path);
         }
-        return 1; // continue running
     }
     else if (strcmp(command, "pwd") == 0) {
         char cwd[MAX_DIR_LEN]; // space to store cwd
         getcwd(cwd, sizeof(cwd));
         printf("%s\n", cwd);
-        return 1; // continue running
     }
 
+    return 1; // continue running
 }
 
 
