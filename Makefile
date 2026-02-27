@@ -39,7 +39,7 @@ CFLAGS  := -Wall -Wextra -I$(INC_DIR)
 #-Wextra provides additional warnings...
 
 # Target executable name
-TARGET	:= $(EXE_DIR)/hw2
+TARGET	:= $(EXE_DIR)/myshell
 
 # Find all .c files in SRC_DIR
 SRCS    := $(wildcard $(SRC_DIR)/*.c)
