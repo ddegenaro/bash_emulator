@@ -6,8 +6,7 @@ int main() {
 
     int exit_status = 1;
 
-    char line[256];
-    char command[20];
+    char line[MAX_LINE];
 
     while (exit_status) {
         print_prompt();
@@ -18,13 +17,13 @@ int main() {
             continue;
         }
 
-        parse_line(&line, &command);
+        char **args = parse_line();
 
-        if (is_builtin(&command)) {
-            execute_builtin(&command);
+        if (is_builtin(args[0])) {
+            execute_builtin(args);
         }
         else {
-            execute_external(&command);
+            execute_external(args);
         }
     }
 

@@ -21,4 +21,7 @@ int execute_builtin_command();
 void execute_external();
 void free_args();
 
+#define MAX_LINE 256
+#define MAX_ARGS 20
+
 #endif

@@ -3,13 +3,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_ARGS 20
-#define MAX_LINE 256
+#include "shell.h"
 
 const char *builtins[] = {"exit", "cd", "pwd", NULL};
 
 /*
-
+    Prints the bash prompt.
 */
 void print_prompt() {
     printf("myshell -> ");
@@ -19,7 +18,10 @@ void print_prompt() {
 
 
 /*
+    Reads a line of input sent from the bash terminal.
 
+    Returns:
+        char *: The line, with the terminating newline character removed.
 */
 char *read_line() {
     // scan MAX_LINE chars from stdin
@@ -31,7 +33,13 @@ char *read_line() {
 
 
 /*
+    Parses a line of input sent from the bash terminal using strtok().
 
+    Args:
+        char *line: The line, with terminating newline character removed.
+    Returns:
+        char **: The command and its associated arguments, assumed to be
+            whitespace-separated. Index 0 is assumed to be the command.
 */
 char **parse_line(char *line) {
 
@@ -47,15 +55,15 @@ char **parse_line(char *line) {
     char **args;
 
     while (token != NULL && num_args < MAX_ARGS - 1) {
+        // malloc enough space to copy token to args array
         args[num_args] = malloc(strlen(token) + 1);
-
-        strcpy(args[num_args], token);
-
-        ++num_args;
+        strcpy(args[num_args], token); // copy token to args array
+        ++num_args; // count arg
     }
 
+    // terminate with NULL for later readability
     args[num_args] = NULL;
-    free(line_copy);
+    free(line_copy); // no longer need the copy
 
     return args;
 }
@@ -67,6 +75,7 @@ char **parse_line(char *line) {
 */
 int is_builtin(const char *command) {
 
+    // check command against each builtin
     for (int i = 0; i < sizeof(builtins) / sizeof(builtins[0]); ++i) {
         if (strcmp(command, builtins[i]) == 0) {
             return 1; // is a built-in
@@ -77,8 +86,9 @@ int is_builtin(const char *command) {
 
 }
 
-int execute_builtin_command(char *command, char **args) {
+int execute_builtin_command(char **args) {
 
+    char *command = args[0];
     char *path = args[1];
 
     if (strcmp(command, "exit") == 0) {
@@ -103,7 +113,7 @@ int execute_builtin_command(char *command, char **args) {
 
 }
 
-void execute_external(char *command) {
+void execute_external(char **args) {
 
 }
 
