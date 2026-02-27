@@ -1,3 +1,14 @@
+/*************************************************************************
+ Authors:        Dan DeGenaro, Tian Li (Net IDs: drd92, tl995)
+ Date:           Feb 27, 2026
+ Last Updated:   Feb 27, 2026
+ Purpose:        Implements main functionalities for bash emulation program.
+ Program:        shell.c
+ Platform:       Linux, Solaris, BSD
+ gcc Version:    gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-28)
+ Version:        1.0
+*************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,7 +82,12 @@ char **parse_line(char *line) {
 
 
 /*
+    Determines whether the given command is a built-in or external.
 
+    Args:
+        const char *command: A string containing the command to be checked.
+    Returns:
+        int: 1 if the command is a built-in, else 0.
 */
 int is_builtin(const char *command) {
 
@@ -86,6 +102,16 @@ int is_builtin(const char *command) {
 
 }
 
+
+
+/*
+    Executes a built-in command (exit, cd, pwd).
+
+    Args:
+        char **args: The command (index 0) and its associated arguments.
+    Returns:
+        int: 1 to continue running.
+*/
 int execute_builtin_command(char **args) {
 
     char *command = args[0];
@@ -93,7 +119,7 @@ int execute_builtin_command(char **args) {
 
     if (strcmp(command, "exit") == 0) {
         printf("Goodbye!");
-        _exit(0);
+        return 0; // exit safely
     }
     else if (strcmp(command, "cd") == 0) {
         if (path == NULL) { // cd sends you to ~ if you don't supply an arg
@@ -105,25 +131,45 @@ int execute_builtin_command(char **args) {
         return 1; // continue running
     }
     else if (strcmp(command, "pwd") == 0) {
-        char cwd[1024];
+        char cwd[MAX_DIR_LEN]; // space to store cwd
         getcwd(cwd, sizeof(cwd));
         printf("%s\n", cwd);
-        return 1;
+        return 1; // continue running
     }
 
 }
 
-void execute_external(char **args) {
 
+
+/*
+    Executes an external command.
+
+    Args:
+        char **args: The command (index 0) and its associated arguments.
+*/
+void execute_external_command(char **args) {
+    // TODO
 }
 
+
+
+/*
+    Frees the memory allocated to the argument array.
+
+    Args:
+        char **args: The command (index 0) and its associated arguments.
+*/
 void free_args(char **args) {
-    if (args == NULL) {
+    if (args == NULL) { // no args, nothing to do
         return;
     }
+
+    // free one-by-one
     for (int i = 0; args[i] != NULL; ++i) {
         free(args[i]);
     }
+
+    // now free ref to array
     free(args);
 }
 

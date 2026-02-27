@@ -18,10 +18,11 @@ char *read_line();
 char **parse_line();
 int is_builtin();
 int execute_builtin_command();
-void execute_external();
+void execute_external_command();
 void free_args();
 
 #define MAX_LINE 256
 #define MAX_ARGS 20
+#define MAX_DIR_LEN 1024
 
 #endif
