@@ -13,6 +13,11 @@
 
 #include "shell.h"
 
+
+
+/*
+    Entry point to the program. Handles REPL loop.
+*/
 int main() {
 
     int exit_status = 1;
@@ -28,9 +33,11 @@ int main() {
             continue;
         }
 
+        // parse it into argument list
         char **args = parse_line();
 
-        if (is_builtin(args[0])) {
+        // check if built-in, execute appropriate behavior
+        if (is_builtin(args[0])) { // args[0] is command
             exit_status = execute_builtin_command(args);
         }
         else {
