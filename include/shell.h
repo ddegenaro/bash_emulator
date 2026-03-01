@@ -13,13 +13,13 @@
 #define SHELL_H
 
 // from shell.c
-void print_prompt();
-char *read_line();
-char **parse_line();
-int is_builtin();
-int execute_builtin_command();
-void execute_external_command();
-void free_args();
+void print_prompt(void);
+int read_line(char *buf, size_t buflen);
+char **parse_line(char *line);
+int is_builtin(const char *command);
+int execute_builtin_command(char **args);
+void execute_external_command(char **args);
+void free_args(char **args);
 
 #define MAX_LINE 256
 #define MAX_ARGS 20

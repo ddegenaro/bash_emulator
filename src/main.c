@@ -21,20 +21,19 @@
 int main() {
 
     int exit_status = 1;
-
     char line[MAX_LINE];
 
     while (exit_status) {
         print_prompt();
 
-        // get a line
-        strcpy(line, read_line());
-        if (line[0] == '\0') { // check for empty input
-            continue;
-        }
+        if (!read_line(line, sizeof(line))) break;  // Ctrl+D exits
+        if (line[0] == '\0') continue;
 
-        // parse it into argument list
-        char **args = parse_line();
+        char **args = parse_line(line);
+        if (args[0] == NULL) { 
+            free_args(args); 
+            continue; 
+        }
 
         // check if built-in, execute appropriate behavior
         if (is_builtin(args[0])) { // args[0] is command
@@ -43,6 +42,8 @@ int main() {
         else {
             execute_external_command(args);
         }
+
+        free_args(args);
     }
 
     return 0;
