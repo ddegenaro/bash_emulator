@@ -14,6 +14,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <errno.h>
+
 #include "shell.h"
 
 const char *builtins[] = {"exit", "cd", "pwd", NULL};
@@ -30,15 +34,15 @@ void print_prompt() {
 
 /*
     Reads a line of input sent from the bash terminal.
-
-    Returns:
-        char *: The line, with the terminating newline character removed.
+    Args:
+        char *buf: A buffer to store the line of input.
+        size_t buflen: The length of the buffer.
 */
-char *read_line() {
-    // scan MAX_LINE chars from stdin
-    char *line = fgets("%s", MAX_LINE, stdin);
-    line[strlen(line) - 1] = '\0'; // cut off \n char
-    return line;
+int read_line(char *buf, size_t buflen) {
+    if (fgets(buf, buflen, stdin) == NULL) return 0; // EOF
+    size_t n = strlen(buf);
+    if (n > 0 && buf[n - 1] == '\n') buf[n - 1] = '\0';
+    return 1;
 }
 
 
@@ -71,6 +75,8 @@ char **parse_line(char *line) {
         args[num_args] = malloc(strlen(token) + 1);
         strcpy(args[num_args], token); // copy token to args array
         ++num_args; // count arg
+
+        token = strtok(NULL, " \t\n"); // get next token
     }
 
     // terminate with NULL for later readability
@@ -91,15 +97,15 @@ char **parse_line(char *line) {
 */
 int is_builtin(const char *command) {
 
-    // check command against each builtin
-    int builtins_size = (int) sizeof(builtins) / sizeof(builtins[0]);
-    for (int i = 0; i < builtins_size; ++i) {
+    if (command == NULL) return 0;
+
+    for (int i = 0; builtins[i] != NULL; ++i) {    //loop until NULL
         if (strcmp(command, builtins[i]) == 0) {
-            return 1; // is a built-in
+            return 1;
         }
     }
 
-    return 0; // not a built-in
+    return 0;
 
 }
 
@@ -119,7 +125,7 @@ int execute_builtin_command(char **args) {
     char *path = args[1];
 
     if (strcmp(command, "exit") == 0) {
-        printf("Goodbye!");
+        printf("Goodbye!\n");
         return 0; // exit safely
     }
     else if (strcmp(command, "cd") == 0) {
@@ -148,7 +154,26 @@ int execute_builtin_command(char **args) {
         char **args: The command (index 0) and its associated arguments.
 */
 void execute_external_command(char **args) {
-    // TODO
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        perror("fork");
+        return;
+    }
+
+    if (pid == 0) {
+        // child: run command
+        execvp(args[0], args);
+        // only if exec fails
+        fprintf(stderr, "myshell: %s: command not found\n", args[0]);
+        _exit(127);
+    }
+
+    // parent: wait
+    int status;
+    if (waitpid(pid, &status, 0) < 0) {
+        perror("waitpid");
+    }
 }
 
 
