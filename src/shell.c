@@ -26,7 +26,7 @@ const char *builtins[] = {"exit", "cd", "pwd", NULL};
     Prints the bash prompt.
 */
 void print_prompt() {
-    printf("myshell -> ");
+    printf("myshell--> ");
     fflush(stdout);
 }
 
