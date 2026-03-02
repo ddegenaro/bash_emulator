@@ -23,12 +23,17 @@ int main() {
     int exit_status = 1;
     char line[MAX_LINE];
 
+    // REPL loop - execute continuously until exit_status is 0
     while (exit_status) {
         print_prompt();
 
+        // read a line
         if (!read_line(line, sizeof(line))) break;  // Ctrl+D exits
+
+        // check if not blank
         if (line[0] == '\0') continue;
 
+        // parse the line, free args if none
         char **args = parse_line(line);
         if (args[0] == NULL) { 
             free_args(args); 
@@ -43,6 +48,7 @@ int main() {
             execute_external_command(args);
         }
 
+        // cleanup
         free_args(args);
     }
 

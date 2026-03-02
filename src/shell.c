@@ -197,4 +197,3 @@ void free_args(char **args) {
     // now free ref to array
     free(args);
 }
-
