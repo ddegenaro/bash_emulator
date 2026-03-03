@@ -9,6 +9,7 @@
  Version:        1.0
 *************************************************************************/
 
+#include <stdio.h>
 #include <string.h>
 
 #include "shell.h"
@@ -22,6 +23,8 @@ int main() {
 
     int exit_status = 1;
     char line[MAX_LINE];
+
+    printf("\nmyshell 1.0\n\n");
 
     // REPL loop - execute continuously until exit_status is 0
     while (exit_status) {

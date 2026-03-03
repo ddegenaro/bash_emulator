@@ -26,8 +26,10 @@ const char *builtins[] = {"exit", "cd", "pwd", NULL};
     Prints the bash prompt.
 */
 void print_prompt() {
-    printf("myshell--> ");
-    fflush(stdout);
+    if (isatty(fileno(stdin))) {
+        printf("myshell--> ");
+        fflush(stdout);
+    }
 }
 
 
@@ -172,7 +174,7 @@ void reintroduce_whitespace_remove_quotes(char *dest, char *src) {
         }
         dest[j] = '\0'; // terminate string
     }
-    else{
+    else {
         strcpy(dest, src);
     }
 }
@@ -258,7 +260,7 @@ int execute_builtin_command(char **args) {
     char *path = args[1];
 
     if (strcmp(command, "exit") == 0) {
-        printf("Goodbye!\n");
+        printf("\nGoodbye!\n\n");
         return 0; // exit safely
     }
     else if (strcmp(command, "cd") == 0) {
