@@ -6,3 +6,4 @@ build_obj/
 *.o
 *.out
 test_phase1.sh
+test/

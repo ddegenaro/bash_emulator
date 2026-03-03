@@ -48,6 +48,91 @@ int read_line(char *buf, size_t buflen) {
 
 
 /*
+
+*/
+void make_copy_fill_quoted_whitespace(char *dest, char *src) {
+
+    int inside_quotes = 0;
+    char curr_quote = '\0';
+
+    for (int i = 0; i < (int) strlen(src); ++i) {
+
+        // outside quotes, enter double quote
+        if (!inside_quotes && src[i] == '"') {
+            inside_quotes = !inside_quotes; // switch on/off
+            curr_quote = '"'; // inside double quotes
+            dest[i] = src[i]; // copy character
+        }
+        // outside quotes, enter single quote
+        else if (!inside_quotes && src[i] == '\'') {
+            inside_quotes = !inside_quotes; // switch on/off
+            curr_quote = '\''; // inside double quotes
+            dest[i] = src[i]; // copy character
+        }
+        // inside quotes, closing double quote properly
+        else if (inside_quotes && src[i] == '"' && curr_quote == '"') {
+            inside_quotes = !inside_quotes;
+            curr_quote = '\0';
+            dest[i] = src[i];
+        }
+        // inside quotes, closing single quote properly
+        else if (inside_quotes && src[i] == '\'' && curr_quote == '\'') {
+            inside_quotes = !inside_quotes;
+            curr_quote = '\0';
+            dest[i] = src[i];
+        }
+        else if (src[i] == ' ' && inside_quotes) {
+            dest[i] = '\x01'; // replace whitespace inside quotes
+        }
+        else if (src[i] == '\t' && inside_quotes) {
+            dest[i] = '\x02'; // same
+        }
+        else if (src[i] == '\n' && inside_quotes) {
+            dest[i] = '\x03'; // same
+        }
+        else {
+            dest[i] = src[i]; // regular copy
+        }
+    }
+    dest[strlen(src)] = '\0'; // terminate string
+}
+
+
+
+/*
+
+*/
+void reintroduce_whitespace_remove_quotes(char *dest, char *src) {
+
+    if (
+        (src[0] == '"' && src[strlen(src) - 1] == '"')
+        ||
+        (src[0] == '\'' && src[strlen(src) - 1] == '\'')
+    ) {
+        for (int i = 1; i < (int) strlen(src) - 1; ++i) {
+            if (src[i] == '\x01') {
+                dest[i-1] = ' '; // reintroduce whitespace inside quotes
+            }
+            else if (src[i] == '\x02') {
+                dest[i-1] = '\t'; // same
+            }
+            else if (src[i] == '\x03') {
+                dest[i-1] = '\n'; // same
+            }
+            else {
+                dest[i-1] = src[i]; // regular copy
+            }
+        }
+        dest[strlen(src) - 2] = '\0'; // terminate string
+    }
+    else{
+        strcpy(dest, src);
+    }
+}
+
+
+
+/*
     Parses a line of input sent from the bash terminal using strtok().
 
     Args:
@@ -60,7 +145,7 @@ char **parse_line(char *line) {
 
     // make copy of line because tokenizing destroys it
     char line_copy[MAX_LINE];
-    strcpy(line_copy, line);
+    make_copy_fill_quoted_whitespace(line_copy, line);
 
     // initiate tokenization process
     char *token = strtok(line_copy, " \t\n");
@@ -73,7 +158,9 @@ char **parse_line(char *line) {
     while (token != NULL && num_args < MAX_ARGS - 1) {
         // malloc enough space to copy token to args array
         args[num_args] = malloc(strlen(token) + 1);
-        strcpy(args[num_args], token); // copy token to args array
+
+        // copy token to args array, remove quoting and re-introduce whitespace
+        reintroduce_whitespace_remove_quotes(args[num_args], token);
         ++num_args; // count arg
 
         token = strtok(NULL, " \t\n"); // get next token
