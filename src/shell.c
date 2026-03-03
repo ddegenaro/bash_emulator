@@ -50,23 +50,35 @@ int read_line(char *buf, size_t buflen) {
 
 
 /*
+    Copies a line of input by detecting boundaries of string literals
+        and filling in their whitespace such that whitespace tokenization
+        is safe.
 
+    Args:
+        char *dest: The memory location to put the modified copy.
+        char *src: The memory location of the original input.
 */
 void make_copy_fill_quoted_whitespace(char *dest, char *src) {
 
+    // whether we are currently inside a literal
     int inside_quotes = 0;
+
+    // which kind of quoting applies to that literal, \0 as placeholder
     char curr_quote = '\0';
+
+    // whether the next character is an escaped character
     int escaped = 0;
 
     for (int i = 0; i < (int) strlen(src); ++i) {
 
+        // if we just saw a backslash, continue normally
         if (escaped) {
             dest[i] = src[i];
             escaped = 0;
             continue;
         }
 
-        // check for escape inside of double quotes
+        // check for escape inside of double quotes - single quotes don't use it
         if (src[i] == '\\' && inside_quotes && curr_quote == '"') {
             escaped = 1;
             dest[i] = src[i];
@@ -116,10 +128,17 @@ void make_copy_fill_quoted_whitespace(char *dest, char *src) {
 
 
 /*
+    Cleans up a token src and puts the result in dest. Removes quotes,
+        reintroduces whitespace as was input into a literal, and handles
+        ANSI escape sequences inside quoted literals.
 
+    Args:
+        char *dest: The memory location to put the clean result.
+        char *src: The memory location of the original token.
 */
 void reintroduce_whitespace_remove_quotes(char *dest, char *src) {
 
+    // check if this token is quoted, and remove quotes if so
     if (
         (src[0] == '"' && src[strlen(src) - 1] == '"')
         ||
@@ -136,6 +155,7 @@ void reintroduce_whitespace_remove_quotes(char *dest, char *src) {
             else if (src[i] == '\x03') {
                 dest[j++] = '\n'; // same
             }
+            // handle all ANSI escape sequences inside string literals
             else if (src[i] == '\\' && i < (int) strlen(src) - 1) {
                 switch (src[i+1]) {
                     case 'a':
@@ -175,7 +195,7 @@ void reintroduce_whitespace_remove_quotes(char *dest, char *src) {
         dest[j] = '\0'; // terminate string
     }
     else {
-        strcpy(dest, src);
+        strcpy(dest, src); // normal behavior if "normal" token
     }
 }
 
