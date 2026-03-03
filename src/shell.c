@@ -54,10 +54,24 @@ void make_copy_fill_quoted_whitespace(char *dest, char *src) {
 
     int inside_quotes = 0;
     char curr_quote = '\0';
+    int escaped = 0;
 
     for (int i = 0; i < (int) strlen(src); ++i) {
 
-        // outside quotes, enter double quote
+        if (escaped) {
+            dest[i] = src[i];
+            escaped = 0;
+            continue;
+        }
+
+        // check for escape inside of double quotes
+        if (src[i] == '\\' && inside_quotes && curr_quote == '"') {
+            escaped = 1;
+            dest[i] = src[i];
+            continue;
+        }
+
+        // outside quotes, enter double quote if not escaped
         if (!inside_quotes && src[i] == '"') {
             inside_quotes = !inside_quotes; // switch on/off
             curr_quote = '"'; // inside double quotes
@@ -109,21 +123,54 @@ void reintroduce_whitespace_remove_quotes(char *dest, char *src) {
         ||
         (src[0] == '\'' && src[strlen(src) - 1] == '\'')
     ) {
+        int j = 0;
         for (int i = 1; i < (int) strlen(src) - 1; ++i) {
             if (src[i] == '\x01') {
-                dest[i-1] = ' '; // reintroduce whitespace inside quotes
+                dest[j++] = ' '; // reintroduce whitespace inside quotes
             }
             else if (src[i] == '\x02') {
-                dest[i-1] = '\t'; // same
+                dest[j++] = '\t'; // same
             }
             else if (src[i] == '\x03') {
-                dest[i-1] = '\n'; // same
+                dest[j++] = '\n'; // same
+            }
+            else if (src[i] == '\\' && i < (int) strlen(src) - 1) {
+                switch (src[i+1]) {
+                    case 'a':
+                        dest[j++] = '\a';
+                        break;
+                    case 'b':
+                        dest[j++] = '\b';
+                        break;
+                    case 't':
+                        dest[j++] = '\t';
+                        break;
+                    case 'n':
+                        dest[j++] = '\n';
+                        break;
+                    case 'v':
+                        dest[j++] = '\v';
+                        break;
+                    case 'f':
+                        dest[j++] = '\f';
+                        break;
+                    case 'r':
+                        dest[j++] = '\r';
+                        break;
+                    case 'e':
+                        dest[j++] = '\e';
+                        break;
+                    default:
+                        dest[j++] = '\\';
+                        --i;
+                }
+                ++i;
             }
             else {
-                dest[i-1] = src[i]; // regular copy
+                dest[j++] = src[i]; // regular copy
             }
         }
-        dest[strlen(src) - 2] = '\0'; // terminate string
+        dest[j] = '\0'; // terminate string
     }
     else{
         strcpy(dest, src);
