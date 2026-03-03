@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <glob.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
@@ -110,7 +110,6 @@ int is_builtin(const char *command) {
 }
 
 
-
 /*
     Executes a built-in command (exit, cd, pwd).
 
@@ -133,7 +132,7 @@ int execute_builtin_command(char **args) {
             path = getenv("HOME");
         }
         if (chdir(path) != 0) { // change directory now
-            fprintf(stderr, "myshell: cd: %s: No such file or directory", path);
+            fprintf(stderr, "myshell: cd: %s: No such file or directory\n", path);
         }
     }
     else if (strcmp(command, "pwd") == 0) {
@@ -146,6 +145,82 @@ int execute_builtin_command(char **args) {
 }
 
 
+/*
+    Determines whether the given string contains glob metacharacters.
+
+    Args:
+        const char *s: A string to be checked for glob metacharacters.
+    Returns:
+        int: 1 if the string contains glob metacharacters, else 0.
+*/
+static int has_glob_chars(const char *s) {
+    // Minimal: *, ?, [ are glob metacharacters
+    for (; *s; ++s) {
+        if (*s == '*' || *s == '?' || *s == '[') return 1;
+    }
+    return 0;
+}
+
+/*
+    Expands glob patterns in the argument array.
+
+    Args:
+        char **args: The command (index 0) and its associated arguments.
+    Returns:
+        char **: A new argument array with glob patterns expanded, or the
+            original if no glob patterns were found or if an error occurred.
+*/
+char **expand_globs(char **args) {
+    if (args == NULL) return NULL;
+
+    int index = 0;                       // how many args we have written to out[]
+    char **new_args = malloc(MAX_ARGS * sizeof(char *));
+    if (!new_args) return NULL;
+
+    for (int i = 0; args[i] != NULL; ++i) {
+        const char *tok = args[i];
+
+        // Stop if we have no room left
+        if (index >= MAX_ARGS - 1) break;
+
+        if (!has_glob_chars(tok)) { // no glob chars -> copy literal token
+            new_args[index] = malloc(strlen(tok) + 1);
+            if (!new_args[index]) break;
+            strcpy(new_args[index], tok);
+            index++;
+            continue;
+        }
+
+        // Expand glob pattern
+        glob_t g = {0};  // initialize glob_t structure to 0
+
+        int flag = glob(tok, 0, NULL, &g); // 0 means no special flags
+
+        if (flag == 0) {
+            // append matches
+            for (size_t k = 0; k < g.gl_pathc && index < MAX_ARGS - 1; ++k) {
+                const char *match = g.gl_pathv[k];
+                new_args[index] = malloc(strlen(match) + 1);
+                if (!new_args[index]) break;
+                strcpy(new_args[index], match);
+                index++;
+            }
+        } else {
+            // No matches -> keep literal token
+            new_args[index] = malloc(strlen(tok) + 1);
+            if (new_args[index]) {
+                strcpy(new_args[index], tok);
+                index++;
+            }
+        }
+
+        globfree(&g);
+    }
+
+    new_args[index] = NULL;
+    return new_args;
+}
+
 
 /*
     Executes an external command.
@@ -154,10 +229,13 @@ int execute_builtin_command(char **args) {
         char **args: The command (index 0) and its associated arguments.
 */
 void execute_external_command(char **args) {
+
+    args = expand_globs(args);
+
     pid_t pid = fork();
 
     if (pid < 0) {
-        perror("fork");
+        perror("fork\n");
         return;
     }
 
@@ -172,8 +250,10 @@ void execute_external_command(char **args) {
     // parent: wait
     int status;
     if (waitpid(pid, &status, 0) < 0) {
-        perror("waitpid");
+        perror("waitpid\n");
     }
+
+    free_args(args);
 }
 
 
