@@ -136,7 +136,7 @@ void make_copy_fill_quoted_whitespace(char *dest, char *src) {
         char *dest: The memory location to put the clean result.
         char *src: The memory location of the original token.
 */
-void reintroduce_whitespace_remove_quotes(char *dest, char *src) {
+void whitespace_quotes_escapes(char *dest, char *src) {
 
     // check if this token is quoted, and remove quotes if so
     if (
@@ -229,7 +229,7 @@ char **parse_line(char *line) {
         args[num_args] = malloc(strlen(token) + 1);
 
         // copy token to args array, remove quoting and re-introduce whitespace
-        reintroduce_whitespace_remove_quotes(args[num_args], token);
+        whitespace_quotes_escapes(args[num_args], token);
         ++num_args; // count arg
 
         token = strtok(NULL, " \t\n"); // get next token
