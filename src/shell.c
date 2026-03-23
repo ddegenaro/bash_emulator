@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include "shell.h"
 
@@ -378,6 +379,121 @@ char **expand_globs(char **args) {
 }
 
 
+void init_redirection(Redirection *redir) {
+    redir->input_file = NULL;
+    redir->output_file = NULL;
+    redir->error_file = NULL;
+    redir->append_output = 0;
+}
+
+void free_redirection(Redirection *redir) {
+    free(redir->input_file);
+    free(redir->output_file);
+    free(redir->error_file);
+}
+
+char **strip_redirections(char **args, Redirection *redir) {
+    char **clean_args = malloc(MAX_ARGS * sizeof(char *));
+    if (clean_args == NULL) return NULL;
+
+    int j = 0;
+
+    for (int i = 0; args[i] != NULL && j < MAX_ARGS - 1; ++i) {
+        if (strcmp(args[i], "<") == 0) {
+            if (args[i + 1] != NULL) {
+                redir->input_file = strdup(args[i + 1]);
+                i++;
+            }
+        }
+        else if (strcmp(args[i], ">") == 0) {
+            if (args[i + 1] != NULL) {
+                redir->output_file = strdup(args[i + 1]);
+                redir->append_output = 0;
+                i++;
+            }
+        }
+        else if (strcmp(args[i], ">>") == 0) {
+            if (args[i + 1] != NULL) {
+                redir->output_file = strdup(args[i + 1]);
+                redir->append_output = 1;
+                i++;
+            }
+        }
+        else if (strcmp(args[i], "2>") == 0) {
+            if (args[i + 1] != NULL) {
+                redir->error_file = strdup(args[i + 1]);
+                i++;
+            }
+        }
+        else {
+            clean_args[j] = malloc(strlen(args[i]) + 1);
+            if (clean_args[j] == NULL) {
+                clean_args[j] = NULL;
+                return clean_args;
+            }
+            strcpy(clean_args[j], args[i]);
+            j++;
+        }
+    }
+
+    clean_args[j] = NULL;
+    return clean_args;
+}
+
+int apply_redirections(const Redirection *redir) {
+    int fd;
+
+    if (redir->input_file != NULL) {
+        fd = open(redir->input_file, O_RDONLY);
+        if (fd < 0) {
+            perror(redir->input_file);
+            return -1;
+        }
+        if (dup2(fd, STDIN_FILENO) < 0) {
+            perror("dup2");
+            close(fd);
+            return -1;
+        }
+        close(fd);
+    }
+
+    if (redir->output_file != NULL) {
+        int flags = O_WRONLY | O_CREAT;
+        if (redir->append_output)
+            flags |= O_APPEND;
+        else
+            flags |= O_TRUNC;
+
+        fd = open(redir->output_file, flags, 0644);
+        if (fd < 0) {
+            perror(redir->output_file);
+            return -1;
+        }
+        if (dup2(fd, STDOUT_FILENO) < 0) {
+            perror("dup2");
+            close(fd);
+            return -1;
+        }
+        close(fd);
+    }
+
+    if (redir->error_file != NULL) {
+        fd = open(redir->error_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd < 0) {
+            perror(redir->error_file);
+            return -1;
+        }
+        if (dup2(fd, STDERR_FILENO) < 0) {
+            perror("dup2");
+            close(fd);
+            return -1;
+        }
+        close(fd);
+    }
+
+    return 0;
+}
+
 /*
     Executes an external command.
 
@@ -386,16 +502,30 @@ char **expand_globs(char **args) {
 */
 void execute_external_command(char **args) {
 
+    // strip < > >> 2> from argv and store filenames in redir
+    Redirection redir;
+    init_redirection(&redir);
+    args = strip_redirections(args, &redir);
+    if (args == NULL || args[0] == NULL) {
+        free_redirection(&redir);
+        free_args(args);
+        return;
+    }
+
+    // expand globs in args
     args = expand_globs(args);
 
     pid_t pid = fork();
 
     if (pid < 0) {
-        perror("fork\n");
+        perror("fork");
         return;
     }
 
     if (pid == 0) {
+
+        apply_redirections(&redir);
+
         // child: run command
         execvp(args[0], args);
         // only if exec fails
@@ -406,9 +536,10 @@ void execute_external_command(char **args) {
     // parent: wait
     int status;
     if (waitpid(pid, &status, 0) < 0) {
-        perror("waitpid\n");
+        perror("waitpid");
     }
 
+    free_redirection(&redir);
     free_args(args);
 }
 

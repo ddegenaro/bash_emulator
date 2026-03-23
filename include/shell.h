@@ -12,6 +12,19 @@
 #ifndef SHELL_H
 #define SHELL_H
 
+//redirections
+typedef struct {
+    char *input_file;
+    char *output_file;
+    char *error_file;
+    int append_output;
+} Redirection;
+
+void init_redirection(Redirection *redir);
+char **strip_redirections(char **args, Redirection *redir);
+int apply_redirections(const Redirection *redir);
+void free_redirection(Redirection *redir);
+
 // from shell.c
 void print_prompt(void);
 int read_line(char *buf, size_t buflen);
