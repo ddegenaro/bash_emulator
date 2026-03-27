@@ -5,5 +5,5 @@ build_obj/
 *.tgz
 *.o
 *.out
-test_phase1.sh
+test_phase*.sh
 test/
