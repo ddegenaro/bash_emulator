@@ -14,6 +14,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <glob.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
@@ -278,6 +279,21 @@ int is_builtin(const char *command) {
 */
 int execute_builtin_command(char **args) {
 
+    int saved_stdout = dup(STDOUT_FILENO);
+
+    // strip < > >> 2> from argv and store filenames in redir
+    Redirection redir;
+    init_redirection(&redir); // init redirection data
+    args = strip_redirections(args, &redir); // clean args and parse redirects
+    if (args == NULL || args[0] == NULL) { // if nothing to do
+        free_redirection(&redir); // free things
+        free_args(args);
+        return 1; // and give up
+    }
+
+    // attempt to set input, output, err, etc.
+    apply_redirections(&redir);
+
     char *command = args[0];
     char *path = args[1];
 
@@ -297,7 +313,12 @@ int execute_builtin_command(char **args) {
         char cwd[MAX_DIR_LEN]; // space to store cwd
         getcwd(cwd, sizeof(cwd));
         printf("%s\n", cwd);
+        fflush(stdout); // flush before restoring stdout
     }
+
+    // return control to user
+    dup2(saved_stdout, STDOUT_FILENO);
+    close(saved_stdout);
 
     return 1; // continue running
 }
@@ -477,6 +498,37 @@ char **strip_redirections(char **args, Redirection *redir) {
 
 
 /*
+    Makes subdirectories as needed when redirecting output/error.
+
+    Args:
+        const char *filepath: The filepath whose subdirectories may need to
+            be created.
+    Returns:
+        int: 0 if success, else -1.
+*/
+int mkdir_p(const char *filepath) {
+    char *path = strdup(filepath); // copy to avoid modifying original
+    if (!path) return -1;
+
+    // walk through each subdir, stopping before the filename
+    for (char *p = path + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0'; // temporarily truncate
+            // mkdir up to this slash
+            if (mkdir(path, 0755) < 0 && errno != EEXIST) {
+                free(path);
+                return -1;
+            }
+            *p = '/'; // restore /
+        }
+    }
+    free(path);
+    return 0;
+}
+
+
+
+/*
     Applies redirection choices parsed when cleaning the arguments.
 
     Args:
@@ -511,6 +563,9 @@ int apply_redirections(const Redirection *redir) {
         else // otherwise ask permission to clear the file
             flags |= O_TRUNC;
         
+        // create subdirs if needed
+        mkdir_p(redir->output_file);
+        
         // potentially read/write/create, use standard perms if needed
         fd = open(redir->output_file, flags, 0644);
         if (fd < 0) { // can't open file
@@ -527,6 +582,9 @@ int apply_redirections(const Redirection *redir) {
 
     // if redirecting error messages
     if (redir->error_file != NULL) {
+
+        // make subdirs if needed
+        mkdir_p(redir->error_file);
         
         // potentially read/write/create/clear, standard perms
         fd = open(redir->error_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
