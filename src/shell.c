@@ -1,7 +1,7 @@
 /*************************************************************************
  Authors:        Dan DeGenaro, Tian Li (Net IDs: drd92, tl995)
  Date:           Feb 27, 2026
- Last Updated:   Feb 27, 2026
+ Last Updated:   Mar 22, 2026
  Purpose:        Implements main functionalities for bash emulation program.
  Program:        shell.c
  Platform:       Linux, Solaris, BSD
@@ -267,6 +267,7 @@ int is_builtin(const char *command) {
 }
 
 
+
 /*
     Executes a built-in command (exit, cd, pwd).
 
@@ -302,6 +303,7 @@ int execute_builtin_command(char **args) {
 }
 
 
+
 /*
     Determines whether the given string contains glob metacharacters.
 
@@ -317,6 +319,8 @@ static int has_glob_chars(const char *s) {
     }
     return 0;
 }
+
+
 
 /*
     Expands glob patterns in the argument array.
@@ -379,6 +383,13 @@ char **expand_globs(char **args) {
 }
 
 
+
+/*
+    Initializes the values of a Redirection struct.
+
+    Args:
+        Redirection *redir: A pointer to the Redirection struct to initialize.
+*/
 void init_redirection(Redirection *redir) {
     redir->input_file = NULL;
     redir->output_file = NULL;
@@ -386,109 +397,149 @@ void init_redirection(Redirection *redir) {
     redir->append_output = 0;
 }
 
+
+
+/*
+    Frees the memory of a Redirection struct.
+
+    Args:
+        Redirection *redir: A pointer to the Redirection struct whose memory
+            should be freed.
+*/
 void free_redirection(Redirection *redir) {
     free(redir->input_file);
     free(redir->output_file);
     free(redir->error_file);
 }
 
+
+
+/*
+    Cleans arguments by removing redirection tokens and interpreting
+        redirection-related arguments as such.
+
+    Args:
+        char **args: The argument array sent by the user.
+        Redirection *redir: A pointer to a Redirection struct where pointers
+            to redirection file names can be stored.
+*/
 char **strip_redirections(char **args, Redirection *redir) {
+
+    // allocate a new array of strings to store the clean args
     char **clean_args = malloc(MAX_ARGS * sizeof(char *));
-    if (clean_args == NULL) return NULL;
+    if (clean_args == NULL) return NULL; // avoid null pointers
 
     int j = 0;
 
+    // iterate over args array, converting it to clean args (at most MAX_ARGS)
     for (int i = 0; args[i] != NULL && j < MAX_ARGS - 1; ++i) {
-        if (strcmp(args[i], "<") == 0) {
-            if (args[i + 1] != NULL) {
-                redir->input_file = strdup(args[i + 1]);
-                i++;
+        if (strcmp(args[i], "<") == 0) { // if we find the <
+            if (args[i + 1] != NULL) { // look for input target
+                redir->input_file = strdup(args[i + 1]); // copy
+                i++; // next arg
             }
         }
-        else if (strcmp(args[i], ">") == 0) {
-            if (args[i + 1] != NULL) {
-                redir->output_file = strdup(args[i + 1]);
-                redir->append_output = 0;
-                i++;
+        else if (strcmp(args[i], ">") == 0) { // if we find the >
+            if (args[i + 1] != NULL) { // look for output target
+                redir->output_file = strdup(args[i + 1]); // copy
+                redir->append_output = 0; // set to not append
+                i++; // next arg
             }
         }
-        else if (strcmp(args[i], ">>") == 0) {
-            if (args[i + 1] != NULL) {
-                redir->output_file = strdup(args[i + 1]);
-                redir->append_output = 1;
-                i++;
+        else if (strcmp(args[i], ">>") == 0) { // if we find the >>
+            if (args[i + 1] != NULL) { // look for output target
+                redir->output_file = strdup(args[i + 1]); // copy
+                redir->append_output = 1; // set to append
+                i++; // next arg
             }
         }
-        else if (strcmp(args[i], "2>") == 0) {
-            if (args[i + 1] != NULL) {
-                redir->error_file = strdup(args[i + 1]);
-                i++;
+        else if (strcmp(args[i], "2>") == 0) { // if we find the 2>
+            if (args[i + 1] != NULL) { // look for err target
+                redir->error_file = strdup(args[i + 1]); // copy
+                i++; // next arg
             }
         }
-        else {
+        else { // any non-redirection related arg
             clean_args[j] = malloc(strlen(args[i]) + 1);
-            if (clean_args[j] == NULL) {
+            if (clean_args[j] == NULL) { // avoid null pointers
                 clean_args[j] = NULL;
-                return clean_args;
+                return clean_args; // reached end of list
             }
-            strcpy(clean_args[j], args[i]);
+            strcpy(clean_args[j], args[i]); // else copy arg to clean array
             j++;
         }
     }
 
-    clean_args[j] = NULL;
+    clean_args[j] = NULL; // ensure null terminator
     return clean_args;
 }
 
-int apply_redirections(const Redirection *redir) {
-    int fd;
 
+
+/*
+    Applies redirection choices parsed when cleaning the arguments.
+
+    Args:
+        const Redirection *redir: Pointer to Redirection struct holding the
+            options (input, output, err, flag for append/clear).
+    Returns:
+        int: 0 if success, -1 if failure.
+*/
+int apply_redirections(const Redirection *redir) {
+    int fd; // file descriptor
+
+    // if we are getting input by redirection
     if (redir->input_file != NULL) {
-        fd = open(redir->input_file, O_RDONLY);
-        if (fd < 0) {
-            perror(redir->input_file);
+        fd = open(redir->input_file, O_RDONLY); // open that file to read
+        if (fd < 0) { // can't open file
+            perror(redir->input_file); // error on this
             return -1;
         }
-        if (dup2(fd, STDIN_FILENO) < 0) {
-            perror("dup2");
-            close(fd);
+        if (dup2(fd, STDIN_FILENO) < 0) { // try to assign stdin to fd
+            perror("dup2"); // error on dup2 process
+            close(fd); // ensure file is closed
             return -1;
         }
-        close(fd);
+        close(fd); // close input file
     }
 
+    // if we are redirecting output
     if (redir->output_file != NULL) {
         int flags = O_WRONLY | O_CREAT;
-        if (redir->append_output)
-            flags |= O_APPEND;
-        else
+        if (redir->append_output) // if we are appending
+            flags |= O_APPEND; // also flip the bits on for that
+        else // otherwise ask permission to clear the file
             flags |= O_TRUNC;
-
+        
+        // potentially read/write/create, use standard perms if needed
         fd = open(redir->output_file, flags, 0644);
-        if (fd < 0) {
-            perror(redir->output_file);
+        if (fd < 0) { // can't open file
+            perror(redir->output_file); // error on this
             return -1;
         }
-        if (dup2(fd, STDOUT_FILENO) < 0) {
-            perror("dup2");
-            close(fd);
+        if (dup2(fd, STDOUT_FILENO) < 0) { // try to assign stdout to fd
+            perror("dup2"); // error if needed
+            close(fd); // ensure file closed
             return -1;
         }
-        close(fd);
+        close(fd); // close output file
     }
 
+    // if redirecting error messages
     if (redir->error_file != NULL) {
+        
+        // potentially read/write/create/clear, standard perms
         fd = open(redir->error_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd < 0) {
-            perror(redir->error_file);
+        if (fd < 0) { // can't open file
+            perror(redir->error_file); // error on this
             return -1;
         }
-        if (dup2(fd, STDERR_FILENO) < 0) {
-            perror("dup2");
-            close(fd);
+        if (dup2(fd, STDERR_FILENO) < 0) { // try to assign stderr to fd
+            perror("dup2"); // error if needed
+            close(fd); // ensure file closed
             return -1;
         }
-        close(fd);
+        close(fd); // close err file
     }
 
     return 0;
@@ -504,12 +555,12 @@ void execute_external_command(char **args) {
 
     // strip < > >> 2> from argv and store filenames in redir
     Redirection redir;
-    init_redirection(&redir);
-    args = strip_redirections(args, &redir);
-    if (args == NULL || args[0] == NULL) {
-        free_redirection(&redir);
+    init_redirection(&redir); // init redirection data
+    args = strip_redirections(args, &redir); // clean args and parse redirects
+    if (args == NULL || args[0] == NULL) { // if nothing to do
+        free_redirection(&redir); // free things
         free_args(args);
-        return;
+        return; // and give up
     }
 
     // expand globs in args
@@ -524,6 +575,7 @@ void execute_external_command(char **args) {
 
     if (pid == 0) {
 
+        // attempt to set input, output, err, etc.
         apply_redirections(&redir);
 
         // child: run command
@@ -539,6 +591,7 @@ void execute_external_command(char **args) {
         perror("waitpid");
     }
 
+    // free things when done
     free_redirection(&redir);
     free_args(args);
 }
