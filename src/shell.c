@@ -292,7 +292,9 @@ int execute_builtin_command(char **args) {
     }
 
     // attempt to set input, output, err, etc.
-    apply_redirections(&redir);
+    if (apply_redirections(&redir) < 0) {
+        _exit(1);
+    }
 
     char *command = args[0];
     char *path = args[1];
@@ -564,7 +566,7 @@ int apply_redirections(const Redirection *redir) {
             flags |= O_TRUNC;
         
         // create subdirs if needed
-        mkdir_p(redir->output_file);
+        //mkdir_p(redir->output_file);
         
         // potentially read/write/create, use standard perms if needed
         fd = open(redir->output_file, flags, 0644);
@@ -634,7 +636,9 @@ void execute_external_command(char **args) {
     if (pid == 0) {
 
         // attempt to set input, output, err, etc.
-        apply_redirections(&redir);
+        if (apply_redirections(&redir) < 0) {
+            _exit(1);
+        }
 
         // child: run command
         execvp(args[0], args);
