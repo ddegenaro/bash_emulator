@@ -36,6 +36,16 @@ int main() {
         // check if not blank
         if (line[0] == '\0') continue;
 
+        // check for pipes first, since they require special parsing
+        if (find_pipe_quoted(line) != NULL) {
+            Pipeline *p = parse_pipeline(line);
+            if (p != NULL) {
+                execute_pipeline(p);
+                free_pipeline(p);
+            }
+                continue;
+        }
+
         // parse the line, free args if none
         char **args = parse_line(line);
         if (args[0] == NULL) { 
