@@ -1,3 +1,3 @@
-Phase 1 ✓
-phase 2 ✓
+Phase 1 ✓\n
+phase 2 ✓\n
 phase 3 ✓?
