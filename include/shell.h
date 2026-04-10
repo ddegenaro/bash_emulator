@@ -12,6 +12,22 @@
 #ifndef SHELL_H
 #define SHELL_H
 
+// from shell.c
+void print_prompt(void);
+int read_line(char *buf, size_t buflen);
+char **parse_line(char *line);
+int is_builtin(const char *command);
+int execute_builtin_command(char **args);
+void execute_external_command(char **args);
+void free_args(char **args);
+
+#define MAX_LINE 256
+#define MAX_ARGS 20
+#define MAX_DIR_LEN 1024
+
+//glob functions
+char **expand_globs(char **args);
+
 //redirections
 typedef struct {
     char *input_file;
@@ -25,17 +41,25 @@ char **strip_redirections(char **args, Redirection *redir);
 int apply_redirections(const Redirection *redir);
 void free_redirection(Redirection *redir);
 
-// from shell.c
-void print_prompt(void);
-int read_line(char *buf, size_t buflen);
-char **parse_line(char *line);
-int is_builtin(const char *command);
-int execute_builtin_command(char **args);
-void execute_external_command(char **args);
-void free_args(char **args);
 
-#define MAX_LINE 256
-#define MAX_ARGS 20
-#define MAX_DIR_LEN 1024
+//pipeline struct and operator enum
+typedef enum {
+    PIPE_NONE, // No pipe
+    PIPE_BASIC, // | (pipe stdout to next command's stdin)
+    PIPE_AND, // && (conditional execution - success)
+    PIPE_OR, // || (conditional execution - failure)
+    PIPE_SEQ // ; (sequential execution)
+} PipeOperator;
+
+typedef struct {
+    char **commands; // Array of command strings
+    PipeOperator *operators; // Operators between commands
+    int num_commands; // Number of commands
+} Pipeline;
+
+const char *find_pipe_quoted(const char *str);
+Pipeline *parse_pipeline(char *line);
+void free_pipeline(Pipeline *p);
+int execute_pipeline(Pipeline *p);
 
 #endif
