@@ -26,6 +26,7 @@ int execute_pipeline(Pipeline *p) {
     int num_pipes = p->num_commands - 1;
     int pipes[MAX_ARGS][2];
     pid_t pids[MAX_ARGS];
+    pid_t pgid = 0;
 
     for (int i = 0; i < num_pipes; i++) {
         if (pipe(pipes[i]) < 0) {
@@ -43,23 +44,25 @@ int execute_pipeline(Pipeline *p) {
         }
 
         if (pid == 0) {
-            // stdin from previous pipe
+            if (pgid == 0) {
+                setpgid(0, 0);
+            } else {
+                setpgid(0, pgid);
+            }
+
             if (i > 0) {
                 dup2(pipes[i - 1][0], STDIN_FILENO);
             }
 
-            // stdout to next pipe
             if (i < p->num_commands - 1) {
                 dup2(pipes[i][1], STDOUT_FILENO);
             }
 
-            // close all pipe fds in child
             for (int j = 0; j < num_pipes; j++) {
                 close(pipes[j][0]);
                 close(pipes[j][1]);
             }
 
-            // reuse your existing phase-2 command parsing
             char line_copy[MAX_LINE];
             strncpy(line_copy, p->commands[i], MAX_LINE - 1);
             line_copy[MAX_LINE - 1] = '\0';
@@ -94,24 +97,41 @@ int execute_pipeline(Pipeline *p) {
             _exit(127);
         }
 
+        if (pgid == 0) {
+            pgid = pid;
+        }
+        setpgid(pid, pgid);
         pids[i] = pid;
     }
 
-    // parent closes all pipe fds
     for (int i = 0; i < num_pipes; i++) {
         close(pipes[i][0]);
         close(pipes[i][1]);
+    }
+
+    foreground_pid = pgid;
+    current_child_pid = pids[0];
+
+    if (isatty(STDIN_FILENO)) {
+        tcsetpgrp(STDIN_FILENO, pgid);
     }
 
     int status = 0;
     int last_status = 0;
 
     for (int i = 0; i < p->num_commands; i++) {
-        waitpid(pids[i], &status, 0);
+        waitpid(pids[i], &status, WUNTRACED);
         if (i == p->num_commands - 1) {
             last_status = status;
         }
     }
+
+    if (isatty(STDIN_FILENO)) {
+        tcsetpgrp(STDIN_FILENO, shell_pid);
+    }
+
+    foreground_pid = 0;
+    current_child_pid = 0;
 
     if (WIFEXITED(last_status)) {
         return WEXITSTATUS(last_status);
