@@ -11,6 +11,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 #include "shell.h"
 
@@ -19,51 +22,107 @@
 /*
     Entry point to the program. Handles REPL loop.
 */
-int main() {
-
+int main(void) {
     int exit_status = 1;
     char line[MAX_LINE];
 
+    init_job_table();
+    setup_signal_handlers();
+
     printf("\nmyshell 1.0\n\n");
 
-    // REPL loop - execute continuously until exit_status is 0
     while (exit_status) {
+        cleanup_done_jobs();
+
         print_prompt();
 
-        // read a line
-        if (!read_line(line, sizeof(line))) break;  // Ctrl+D exits
-
-        // check if not blank
+        if (!read_line(line, sizeof(line))) break;
         if (line[0] == '\0') continue;
 
-        // check for pipes first, since they require special parsing
+        int is_background = parse_background_operator(line);
+
         if (find_pipe_quoted(line) != NULL) {
             Pipeline *p = parse_pipeline(line);
             if (p != NULL) {
-                execute_pipeline(p);
+                if (!is_background) {
+                    execute_pipeline(p);
+                } else {
+                    pid_t pid = fork();
+                    if (pid == 0) {
+                        setpgid(0, 0);
+                        execute_pipeline(p);
+                        free_pipeline(p);
+                        exit(EXIT_SUCCESS);
+                    } else if (pid > 0) {
+                        setpgid(pid, pid);
+                        add_job_phase4(pid, pid, line, 1);
+                    } else {
+                        perror("fork");
+                    }
+                }
                 free_pipeline(p);
             }
-                continue;
+            continue;
         }
 
-        // parse the line, free args if none
-        char **args = parse_line(line);
-        if (args[0] == NULL) { 
-            free_args(args); 
-            continue; 
+        char line_copy[MAX_LINE];
+        strncpy(line_copy, line, MAX_LINE - 1);
+        line_copy[MAX_LINE - 1] = '\0';
+
+        char **args = parse_line(line_copy);
+        if (args[0] == NULL) {
+            free_args(args);
+            continue;
         }
 
-        // check if built-in, execute appropriate behavior
-        if (is_builtin(args[0])) { // args[0] is command
+        if (is_builtin(args[0])) {
             exit_status = execute_builtin_command(args);
-        }
-        else {
-            execute_external_command(args);
+        } else {
+            if (!is_background) {
+                execute_external_command(args);
+            } else {
+                pid_t pid = fork();
+                if (pid == 0) {
+                    setpgid(0, 0);
+
+                    Redirection redir;
+                    init_redirection(&redir);
+
+                    char **clean_args = strip_redirections(args, &redir);
+                    if (clean_args == NULL || clean_args[0] == NULL) {
+                        free_redirection(&redir);
+                        free_args(clean_args);
+                        _exit(1);
+                    }
+
+                    char **expanded_args = expand_globs(clean_args);
+                    free_args(clean_args);
+
+                    if (apply_redirections(&redir) < 0) {
+                        free_redirection(&redir);
+                        free_args(expanded_args);
+                        _exit(1);
+                    }
+
+                    execvp(expanded_args[0], expanded_args);
+                    fprintf(stderr, "myshell: %s: command not found\n", expanded_args[0]);
+
+                    free_redirection(&redir);
+                    free_args(expanded_args);
+                    _exit(127);
+                } else if (pid > 0) {
+                    setpgid(pid, pid);
+                    add_job_phase4(pid, pid, line, 1);
+                } else {
+                    perror("fork");
+                }
+            }
         }
 
-        // cleanup
         free_args(args);
     }
 
+    restore_signal_handlers();
+    free_job_table();
     return 0;
 }

@@ -22,7 +22,7 @@
 
 #include "shell.h"
 
-const char *builtins[] = {"exit", "cd", "pwd", NULL};
+const char *builtins[] = {"exit", "cd", "pwd", "jobs", "fg", "bg", NULL};
 
 /*
     Prints the bash prompt.
@@ -316,6 +316,29 @@ int execute_builtin_command(char **args) {
         getcwd(cwd, sizeof(cwd));
         printf("%s\n", cwd);
         fflush(stdout); // flush before restoring stdout
+    }
+    else if (strcmp(command, "jobs") == 0) {
+        builtin_jobs();
+    }
+    else if (strcmp(command, "fg") == 0) {
+        if (args[1] == NULL) {
+            printf("myshell: fg: usage: fg %%jobid\n");
+        } else {
+            int job_id = 0;
+            if (args[1][0] == '%') job_id = atoi(args[1] + 1);
+            else job_id = atoi(args[1]);
+            builtin_fg(job_id);
+        }
+    }
+    else if (strcmp(command, "bg") == 0) {
+        if (args[1] == NULL) {
+            printf("myshell: bg: usage: bg %%jobid\n");
+        } else {
+            int job_id = 0;
+            if (args[1][0] == '%') job_id = atoi(args[1] + 1);
+            else job_id = atoi(args[1]);
+            builtin_bg(job_id);
+        }
     }
 
     // return control to user
@@ -612,11 +635,23 @@ int apply_redirections(const Redirection *redir) {
         char **args: The command (index 0) and its associated arguments.
 */
 void execute_external_command(char **args) {
+    if (args == NULL || args[0] == NULL) {
+        return;
+    }
+    
+    char cmdline[MAX_LINE] = {0};
+    for (int i = 0; args[i] != NULL; ++i) {
+        if (i > 0) {
+            strncat(cmdline, " ", MAX_LINE - strlen(cmdline) - 1);
+        }
+        strncat(cmdline, args[i], MAX_LINE - strlen(cmdline) - 1);
+    }
 
     // strip < > >> 2> from argv and store filenames in redir
     Redirection redir;
     init_redirection(&redir); // init redirection data
-    args = strip_redirections(args, &redir); // clean args and parse redirects
+
+    char **clean_args = strip_redirections(args, &redir); // clean args and parse redirects
     if (args == NULL || args[0] == NULL) { // if nothing to do
         free_redirection(&redir); // free things
         free_args(args);
@@ -624,38 +659,83 @@ void execute_external_command(char **args) {
     }
 
     // expand globs in args
-    args = expand_globs(args);
+    char **expanded_args = expand_globs(clean_args);
 
     pid_t pid = fork();
 
     if (pid < 0) {
         perror("fork");
+        free_redirection(&redir);
+        free_args(clean_args);
+        free_args(expanded_args);
         return;
     }
 
     if (pid == 0) {
 
-        // attempt to set input, output, err, etc.
+        // Child: put itself in its own process group
+        setpgid(0, 0);
+
+        // Give child the terminal if interactive
+        if (isatty(STDIN_FILENO)) {
+            tcsetpgrp(STDIN_FILENO, getpid());
+        }
+
+        // Apply redirections
         if (apply_redirections(&redir) < 0) {
+            free_redirection(&redir);
+            free_args(clean_args);
+            free_args(expanded_args);
             _exit(1);
         }
 
-        // child: run command
-        execvp(args[0], args);
-        // only if exec fails
-        fprintf(stderr, "myshell: %s: command not found\n", args[0]);
+        execvp(expanded_args[0], expanded_args);
+
+        fprintf(stderr, "myshell: %s: command not found\n", expanded_args[0]);
+
+        free_redirection(&redir);
+        free_args(clean_args);
+        free_args(expanded_args);
         _exit(127);
     }
 
-    // parent: wait
-    int status;
-    if (waitpid(pid, &status, 0) < 0) {
+    // Parent: also try to place child in its own process group
+    setpgid(pid, pid);
+
+    foreground_pid = pid;
+    current_child_pid = pid;
+
+    if (isatty(STDIN_FILENO)) {
+        tcsetpgrp(STDIN_FILENO, pid);
+    }
+
+    int status = 0;
+    if (waitpid(pid, &status, WUNTRACED) < 0) {
         perror("waitpid");
     }
 
-    // free things when done
+    // Restore terminal control to shell
+    if (isatty(STDIN_FILENO)) {
+        tcsetpgrp(STDIN_FILENO, shell_pid);
+    }
+
+    foreground_pid = 0;
+    current_child_pid = 0;
+
+    // If stopped with Ctrl+Z, add to jobs table
+    if (WIFSTOPPED(status)) {
+        int jid = add_job_phase4(pid, pid, cmdline, 0);
+        Job *job = find_job_by_id(jid);
+        if (job != NULL) {
+            job->status = JOB_STOPPED;
+            printf("\n[%d] Stopped %s\n", job->job_id, job->command_line);
+            fflush(stdout);
+        }
+    }
+
     free_redirection(&redir);
-    free_args(args);
+    free_args(clean_args);
+    free_args(expanded_args);
 }
 
 
