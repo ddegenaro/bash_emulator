@@ -37,6 +37,10 @@ void init_job_table(void) {
     global_job_table.total_jobs = 0; // no jobs at present
     // Put shell in its own process group
     setpgid(0, 0);
+
+    if (isatty(STDIN_FILENO)) {
+        tcsetpgrp(STDIN_FILENO, shell_pid);
+    }
 }
 
 
@@ -120,10 +124,18 @@ Job *find_job_by_pid(pid_t pid) {
 
 
 /*
+    Adds a job to the jobs table.
 
+    Args:
+        `pid_t pid`: The Process ID of the job.
+        `pid_t pgid`: The Process Group ID of the job.
+        `const char *cmd`: The command associated with this job.
+        `int is_background`: Whether to run it in the background.
+    Returns:
+        `int`: The job ID assigned if successful, else -1.
 */
 int add_job_phase4(pid_t pid, pid_t pgid, const char *cmd, int is_background) {
-    Job *j = malloc(sizeof(Job)); // allocate memory for a job in the table
+    Job *j = malloc(sizeof(Job)); // allocate memory for a job struct in the table
     if (j == NULL) { // handle OOM
         perror("malloc");
         return -1;
@@ -132,20 +144,20 @@ int add_job_phase4(pid_t pid, pid_t pgid, const char *cmd, int is_background) {
     j->job_id = global_job_table.next_id++; // get next id and add 1 for future job
     j->pid = pid; // set job PID
     j->command_line = strdup(cmd); // command associated with this job
-    if (j->command_line == NULL) {
+    if (j->command_line == NULL) { // issue with copying the cmd
         free(j);
         perror("strdup");
         return -1;
     }
 
-    j->status = JOB_RUNNING;
-    j->next = global_job_table.head;
-    global_job_table.head = j;
-    global_job_table.total_jobs++;
+    j->status = JOB_RUNNING; // set running
+    j->next = global_job_table.head; // push down in the list
+    global_job_table.head = j; // most recent job is head
+    global_job_table.total_jobs++; // added 1 job
 
-    (void)pgid;
+    (void)pgid; 
 
-    if (is_background) {
+    if (is_background) { // print a message if the job has been put in the bg
         printf("[%d] %d\n", j->job_id, pid);
         fflush(stdout);
     }
@@ -210,12 +222,15 @@ void builtin_jobs(void) {
         `int job_id`: The job ID (not PID) to bring to the foreground.
 */
 void builtin_fg(int job_id) {
+
+    // find the job
     Job *job = find_job_by_id(job_id);
-    if (job == NULL) {
+    if (job == NULL) { // not found
         printf("myshell: fg: job not found\n");
         return;
     }
 
+    // display command associated with the job
     printf("%s\n", job->command_line);
     fflush(stdout);
 
@@ -261,16 +276,22 @@ void builtin_fg(int job_id) {
         `int job_id`: The job ID (not PID) to bring to the foreground.
 */
 void builtin_bg(int job_id) {
+
+    // search for job
     Job *job = find_job_by_id(job_id);
+
+    // not found
     if (job == NULL) {
         printf("myshell: bg: job not found\n");
         return;
     }
 
+    // already done
     if (job->status == JOB_DONE) {
         printf("myshell: bg: job already finished\n");
         return;
     }
+
 
     kill(-job->pid, SIGCONT);
     job->status = JOB_RUNNING;
@@ -316,6 +337,14 @@ void free_job_table(void) {
     global_job_table.total_jobs = 0;
 }
 
+
+
+/*
+    Handles SIGCHILD.
+
+    Args:
+        `int sig`: The signal.
+*/
 void handle_sigchld(int sig) {
     (void)sig;
 
@@ -362,21 +391,29 @@ void handle_sigtstp(int sig) {
 void setup_signal_handlers(void) {
     struct sigaction sa;
 
+    // SIGTTOU/SITTTIN - ignore so shell can call tcsetpgrp without being stopped
+    signal(SIGTTOU, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+
+    // SIGCHILD - auto-reap background children
     sa.sa_handler = handle_sigchld;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
     sigaction(SIGCHLD, &sa, NULL);
 
+    // SIGINT - forward Ctrl+C to foreground child
     sa.sa_handler = handle_sigint;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     sigaction(SIGINT, &sa, NULL);
 
+    // SIGTSTP - forward Ctrl+Z to foreground child
     sa.sa_handler = handle_sigtstp;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     sigaction(SIGTSTP, &sa, NULL);
 
+    // SIGPIPE - ignore broken pipes
     signal(SIGPIPE, SIG_IGN);
 }
 

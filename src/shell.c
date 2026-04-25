@@ -14,6 +14,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <glob.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -657,9 +658,10 @@ void execute_external_command(char **args) {
     init_redirection(&redir); // init redirection data
 
     char **clean_args = strip_redirections(args, &redir); // clean args and parse redirects
-    if (args == NULL || args[0] == NULL) { // if nothing to do
+    if (clean_args == NULL || clean_args[0] == NULL) { // if nothing to do
         free_redirection(&redir); // free things
         free_args(args);
+        free_args(clean_args);
         return; // and give up
     }
 
@@ -684,9 +686,14 @@ void execute_external_command(char **args) {
         setpgid(0, 0);
 
         // Give child the terminal if interactive
-        if (isatty(STDIN_FILENO)) {
-            tcsetpgrp(STDIN_FILENO, getpid());
-        }
+        // if (isatty(STDIN_FILENO)) {
+        //     tcsetpgrp(STDIN_FILENO, getpid());
+        // }
+
+        signal(SIGINT, SIG_DFL);
+        signal(SIGTSTP, SIG_DFL);
+        signal(SIGTTOU, SIG_DFL);
+        signal(SIGTTIN, SIG_DFL);
 
         // Apply redirections
         if (apply_redirections(&redir) < 0) {
