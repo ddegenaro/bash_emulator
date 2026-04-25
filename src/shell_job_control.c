@@ -25,14 +25,16 @@ pid_t shell_pid = 0; // Shell's own PID
 pid_t foreground_pid = 0; // PID of current foreground process group
 pid_t current_child_pid = 0; // Used by SIGINT handler
 
+
+
 /*
     Initializes the job table.
 */
 void init_job_table(void) {
-    shell_pid = getpid();
-    global_job_table.head = NULL;
-    global_job_table.next_id = 1;
-    global_job_table.total_jobs = 0;
+    shell_pid = getpid(); // PID of the shell process
+    global_job_table.head = NULL; // head of list
+    global_job_table.next_id = 1; // first ID will be 1
+    global_job_table.total_jobs = 0; // no jobs at present
     // Put shell in its own process group
     setpgid(0, 0);
 }
@@ -73,6 +75,8 @@ int parse_background_operator(char *line) {
     return 0; // 0 if no & found
 }
 
+
+
 /*
     Finds a job in the job table using its integer ID.
 
@@ -92,15 +96,32 @@ Job *find_job_by_id(int job_id) {
     return NULL; // not found
 }
 
+
+
+/*
+    Finds a job in the job table using its process ID (PID).
+
+    Args:
+        `pid_t pid`: The process ID of the job to search for.
+    Returns:
+        `Job *`: A pointer to that job if it exists, else `NULL`.
+*/
 Job *find_job_by_pid(pid_t pid) {
+
+    // search list, return job if id matches
     Job *curr = global_job_table.head;
     while (curr != NULL) {
         if (curr->pid == pid) return curr;
         curr = curr->next;
     }
-    return NULL;
+    return NULL; // not found
 }
 
+
+
+/*
+
+*/
 int add_job_phase4(pid_t pid, pid_t pgid, const char *cmd, int is_background) {
     Job *j = malloc(sizeof(Job)); // allocate memory for a job in the table
     if (j == NULL) { // handle OOM
@@ -132,6 +153,16 @@ int add_job_phase4(pid_t pid, pid_t pgid, const char *cmd, int is_background) {
     return j->job_id;
 }
 
+
+
+/*
+    Convert a `JobStatus` struct into a string representation.
+
+    Args:
+        `JobStatus status`: The status to be converted.
+    Returns:
+        `char *`: Either "Running", "Stopped", "Done", or "Unknown".
+*/
 static const char *job_status_string(JobStatus status) {
     switch (status) {
         case JOB_RUNNING:
@@ -145,19 +176,39 @@ static const char *job_status_string(JobStatus status) {
     }
 }
 
+
+
+/*
+    Executes the `jobs` command as a built-in.
+*/
 void builtin_jobs(void) {
+
+    // start from head of table's list
     Job *curr = global_job_table.head;
+
+    // iterate over list
     while (curr != NULL) {
         if (curr->status != JOB_DONE) {
-            printf("[%d] %s %s\n",
-                   curr->job_id,
-                   job_status_string(curr->status),
-                   curr->command_line);
+            // print any job that is not "Done"
+            printf(
+                "[%d] %s %s\n",
+                curr->job_id,
+                job_status_string(curr->status),
+                curr->command_line
+            );
         }
         curr = curr->next;
     }
 }
 
+
+
+/*
+    Executes the `fg` command as a built-in.
+
+    Args:
+        `int job_id`: The job ID (not PID) to bring to the foreground.
+*/
 void builtin_fg(int job_id) {
     Job *job = find_job_by_id(job_id);
     if (job == NULL) {
@@ -201,6 +252,14 @@ void builtin_fg(int job_id) {
     }
 }
 
+
+
+/*
+    Executes the `bg` command as a built-in.
+
+    Args:
+        `int job_id`: The job ID (not PID) to bring to the foreground.
+*/
 void builtin_bg(int job_id) {
     Job *job = find_job_by_id(job_id);
     if (job == NULL) {
