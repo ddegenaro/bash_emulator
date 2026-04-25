@@ -1,0 +1,53 @@
+PASS: Single background job execution
+PASS: Multiple background jobs (3 jobs)
+PASS: Background echo command
+PASS: Background job with output redirection
+PASS: jobs command displays running jobs
+FAIL: jobs output contains job ID, status, PID, and command
+PASS: jobs -r shows running jobs
+FAIL: jobs shows 'no jobs' when list is empty
+PASS: Job IDs increment correctly
+PASS: fg command execution
+PASS: fg reports error for invalid job ID
+PASS: fg operation tracked in jobs
+FAIL: bg command exists
+PASS: bg reports error for invalid job ID
+PASS: bg handles missing arguments
+PASS: wait command exists
+PASS: wait handles invalid job ID
+PASS: wait command completes successfully
+PASS: Job ID parsing with % prefix
+PASS: Job ID parsing without % prefix
+PASS: Current job specifier (%+)
+PASS: Previous job specifier (%-)
+PASS: Pipe executed in background
+PASS: Multiple pipes in background
+PASS: AND operator in background
+PASS: OR operator in background
+PASS: Sequential operator in background
+PASS: Output redirection in background
+PASS: Append redirection in background
+PASS: Input redirection in background
+PASS: Error redirection in background
+FAIL: Glob pattern in background
+PASS: Glob pattern with pipe in background
+PASS: Pipeline with redirection in background
+PASS: AND operator with background job
+PASS: Multiple features combined (pipe + redir + bg + jobs)
+FAIL: Sequential background jobs
+PASS: Quoted ampersand not treated as background operator
+PASS: Quoted pipe with background job
+PASS: Complex quotes with background redirection
+PASS: Nonexistent command in background (job created)
+PASS: fg error when no jobs exist
+PASS: Multiple background jobs have different IDs
+PASS: Background job created even for failing command
+PASS: Shell continues after background job
+PASS: Multiple background jobs don't interfere
+PASS: Background jobs persist after foreground commands
+FAIL: Phase 1 glob patterns still work
+PASS: Phase 2 I/O redirection still works
+PASS: Phase 3 pipes still work
+PASS: Phase 3 AND operator still works
+PASS: Phase 3 OR operator still works
+PASS: Phase 3 sequential operator still works

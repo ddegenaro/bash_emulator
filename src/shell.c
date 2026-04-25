@@ -635,11 +635,16 @@ int apply_redirections(const Redirection *redir) {
         char **args: The command (index 0) and its associated arguments.
 */
 void execute_external_command(char **args) {
+
+    // null checking
     if (args == NULL || args[0] == NULL) {
         return;
     }
     
+    // max line length allowed
     char cmdline[MAX_LINE] = {0};
+
+    // paste args together separated with spaces
     for (int i = 0; args[i] != NULL; ++i) {
         if (i > 0) {
             strncat(cmdline, " ", MAX_LINE - strlen(cmdline) - 1);
@@ -661,8 +666,10 @@ void execute_external_command(char **args) {
     // expand globs in args
     char **expanded_args = expand_globs(clean_args);
 
+    // fork here to execute the external command in a new process
     pid_t pid = fork();
 
+    // pid being -1 means an error occurred creating the fork
     if (pid < 0) {
         perror("fork");
         free_redirection(&redir);
@@ -688,7 +695,8 @@ void execute_external_command(char **args) {
             free_args(expanded_args);
             _exit(1);
         }
-
+        
+        // execute
         execvp(expanded_args[0], expanded_args);
 
         fprintf(stderr, "myshell: %s: command not found\n", expanded_args[0]);

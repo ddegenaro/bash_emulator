@@ -63,15 +63,15 @@ Job *find_job_by_pid(pid_t pid) {
 }
 
 int add_job_phase4(pid_t pid, pid_t pgid, const char *cmd, int is_background) {
-    Job *j = malloc(sizeof(Job));
-    if (j == NULL) {
+    Job *j = malloc(sizeof(Job)); // allocate memory for a job in the table
+    if (j == NULL) { // handle OOM
         perror("malloc");
         return -1;
     }
 
-    j->job_id = global_job_table.next_id++;
-    j->pid = pid;
-    j->command_line = strdup(cmd);
+    j->job_id = global_job_table.next_id++; // get next id and add 1 for future job
+    j->pid = pid; // set job PID
+    j->command_line = strdup(cmd); 
     if (j->command_line == NULL) {
         free(j);
         perror("strdup");
