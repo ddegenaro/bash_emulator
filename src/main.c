@@ -21,13 +21,16 @@
 
 /*
     Entry point to the program. Handles REPL loop.
+
+    Returns:
+        `int`: 0 on successful exit.
 */
 int main(void) {
     int exit_status = 1;
-    char line[MAX_LINE];
+    char line[MAX_LINE]; // buffer to be read from terminal
 
-    init_job_table();
-    setup_signal_handlers();
+    init_job_table(); // create a job table for bg processes
+    setup_signal_handlers(); // 
 
     printf("\nmyshell 1.0\n\n");
 

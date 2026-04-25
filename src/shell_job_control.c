@@ -1,11 +1,22 @@
+/*************************************************************************
+ Authors:        Tian Li, Dan DeGenaro (Net IDs: tl995, drd92)
+ Date:           Apr 9, 2026
+ Last Updated:   Apr 25, 2026
+ Purpose:        Implements main functionalities for bash emulation program.
+ Program:        shell.c
+ Platform:       Linux, Solaris, BSD
+ gcc Version:    gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-28)
+ Version:        1.0
+*************************************************************************/
+
+#include <ctype.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <signal.h>
 #include <sys/wait.h>
 #include <termios.h>
-#include <ctype.h>
+#include <unistd.h>
 
 #include "shell.h"
 
@@ -14,6 +25,9 @@ pid_t shell_pid = 0; // Shell's own PID
 pid_t foreground_pid = 0; // PID of current foreground process group
 pid_t current_child_pid = 0; // Used by SIGINT handler
 
+/*
+    Initializes the job table.
+*/
 void init_job_table(void) {
     shell_pid = getpid();
     global_job_table.head = NULL;
@@ -23,34 +37,59 @@ void init_job_table(void) {
     setpgid(0, 0);
 }
 
+
+
+/*
+    Looks for the background operator & at the end of the line,
+        ignoring surrounding whitespace.
+
+    Args:
+        `char *line`: The line to be parsed. The & operator will be removed from
+            the line along with surrounding whitespace.
+    Returns:
+        `int`: 1 if the & operator was found, else 0.
+*/
 int parse_background_operator(char *line) {
     size_t len = strlen(line);
 
+    // ignore trailing whitespace
     while (len > 0 && isspace((unsigned char)line[len - 1])) {
         len--;
     }
 
+    // found background operator at the end of the line
     if (len > 0 && line[len - 1] == '&') {
-        line[len - 1] = '\0';
+        line[len - 1] = '\0'; // replace with terminator
 
+        // trim trailing whitespace
         len = strlen(line);
         while (len > 0 && isspace((unsigned char)line[len - 1])) {
             line[--len] = '\0';
         }
 
-        return 1;
+        return 1; // 1 because & was found
     }
 
-    return 0;
+    return 0; // 0 if no & found
 }
 
+/*
+    Finds a job in the job table using its integer ID.
+
+    Args:
+        `int job_id`: The integer ID of the job to search for.
+    Returns:
+        `Job *`: A pointer to that job if it exists, else `NULL`.
+*/
 Job *find_job_by_id(int job_id) {
+
+    // search list, return job if id matches
     Job *curr = global_job_table.head;
     while (curr != NULL) {
         if (curr->job_id == job_id) return curr;
         curr = curr->next;
     }
-    return NULL;
+    return NULL; // not found
 }
 
 Job *find_job_by_pid(pid_t pid) {
@@ -71,7 +110,7 @@ int add_job_phase4(pid_t pid, pid_t pgid, const char *cmd, int is_background) {
 
     j->job_id = global_job_table.next_id++; // get next id and add 1 for future job
     j->pid = pid; // set job PID
-    j->command_line = strdup(cmd); 
+    j->command_line = strdup(cmd); // command associated with this job
     if (j->command_line == NULL) {
         free(j);
         perror("strdup");
@@ -258,6 +297,9 @@ void handle_sigtstp(int sig) {
     }
 }
 
+/*
+
+*/
 void setup_signal_handlers(void) {
     struct sigaction sa;
 

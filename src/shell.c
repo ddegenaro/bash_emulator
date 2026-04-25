@@ -1,7 +1,7 @@
 /*************************************************************************
  Authors:        Dan DeGenaro, Tian Li (Net IDs: drd92, tl995)
  Date:           Feb 27, 2026
- Last Updated:   Mar 22, 2026
+ Last Updated:   Apr 25, 2026
  Purpose:        Implements main functionalities for bash emulation program.
  Program:        shell.c
  Platform:       Linux, Solaris, BSD
@@ -39,8 +39,8 @@ void print_prompt() {
 /*
     Reads a line of input sent from the bash terminal.
     Args:
-        char *buf: A buffer to store the line of input.
-        size_t buflen: The length of the buffer.
+        `char *buf`: A buffer to store the line of input.
+        `size_t buflen`: The length of the buffer.
 */
 int read_line(char *buf, size_t buflen) {
     if (fgets(buf, buflen, stdin) == NULL) return 0; // EOF
@@ -57,8 +57,8 @@ int read_line(char *buf, size_t buflen) {
         is safe.
 
     Args:
-        char *dest: The memory location to put the modified copy.
-        char *src: The memory location of the original input.
+        `char *dest`: The memory location to put the modified copy.
+        `char *src`: The memory location of the original input.
 */
 void make_copy_fill_quoted_whitespace(char *dest, char *src) {
 
@@ -135,8 +135,8 @@ void make_copy_fill_quoted_whitespace(char *dest, char *src) {
         ANSI escape sequences inside quoted literals.
 
     Args:
-        char *dest: The memory location to put the clean result.
-        char *src: The memory location of the original token.
+        `char *dest`: The memory location to put the clean result.
+        `char *src`: The memory location of the original token.
 */
 void whitespace_quotes_escapes(char *dest, char *src) {
 
@@ -207,9 +207,9 @@ void whitespace_quotes_escapes(char *dest, char *src) {
     Parses a line of input sent from the bash terminal using strtok().
 
     Args:
-        char *line: The line, with terminating newline character removed.
+        `char *line`: The line, with terminating newline character removed.
     Returns:
-        char **: The command and its associated arguments, assumed to be
+        `char **`: The command and its associated arguments, assumed to be
             whitespace-separated. Index 0 is assumed to be the command.
 */
 char **parse_line(char *line) {
@@ -249,9 +249,9 @@ char **parse_line(char *line) {
     Determines whether the given command is a built-in or external.
 
     Args:
-        const char *command: A string containing the command to be checked.
+        `const char *command`: A string containing the command to be checked.
     Returns:
-        int: 1 if the command is a built-in, else 0.
+        `int`: 1 if the command is a built-in, else 0.
 */
 int is_builtin(const char *command) {
 
@@ -273,9 +273,9 @@ int is_builtin(const char *command) {
     Executes a built-in command (exit, cd, pwd).
 
     Args:
-        char **args: The command (index 0) and its associated arguments.
+        `char **args`: The command (index 0) and its associated arguments.
     Returns:
-        int: 1 to continue running.
+        `int`: 1 to continue running.
 */
 int execute_builtin_command(char **args) {
 
@@ -354,9 +354,9 @@ int execute_builtin_command(char **args) {
     Determines whether the given string contains glob metacharacters.
 
     Args:
-        const char *s: A string to be checked for glob metacharacters.
+        `const char *s`: A string to be checked for glob metacharacters.
     Returns:
-        int: 1 if the string contains glob metacharacters, else 0.
+        `int`: 1 if the string contains glob metacharacters, else 0.
 */
 static int has_glob_chars(const char *s) {
     // Minimal: *, ?, [ are glob metacharacters
@@ -372,9 +372,9 @@ static int has_glob_chars(const char *s) {
     Expands glob patterns in the argument array.
 
     Args:
-        char **args: The command (index 0) and its associated arguments.
+        `char **args`: The command (index 0) and its associated arguments.
     Returns:
-        char **: A new argument array with glob patterns expanded, or the
+        `char **`: A new argument array with glob patterns expanded, or the
             original if no glob patterns were found or if an error occurred.
 */
 char **expand_globs(char **args) {
@@ -431,10 +431,10 @@ char **expand_globs(char **args) {
 
 
 /*
-    Initializes the values of a Redirection struct.
+    Initializes the values of a `Redirection` struct.
 
     Args:
-        Redirection *redir: A pointer to the Redirection struct to initialize.
+        `Redirection *redir`: A pointer to the Redirection struct to initialize.
 */
 void init_redirection(Redirection *redir) {
     redir->input_file = NULL;
@@ -446,10 +446,10 @@ void init_redirection(Redirection *redir) {
 
 
 /*
-    Frees the memory of a Redirection struct.
+    Frees the memory of a `Redirection` struct.
 
     Args:
-        Redirection *redir: A pointer to the Redirection struct whose memory
+        `Redirection *redir`: A pointer to the Redirection struct whose memory
             should be freed.
 */
 void free_redirection(Redirection *redir) {
@@ -526,10 +526,10 @@ char **strip_redirections(char **args, Redirection *redir) {
     Makes subdirectories as needed when redirecting output/error.
 
     Args:
-        const char *filepath: The filepath whose subdirectories may need to
+        `const char *filepath`: The filepath whose subdirectories may need to
             be created.
     Returns:
-        int: 0 if success, else -1.
+        `int`: 0 if success, else -1.
 */
 int mkdir_p(const char *filepath) {
     char *path = strdup(filepath); // copy to avoid modifying original
@@ -557,10 +557,10 @@ int mkdir_p(const char *filepath) {
     Applies redirection choices parsed when cleaning the arguments.
 
     Args:
-        const Redirection *redir: Pointer to Redirection struct holding the
+        `const Redirection *redir`: Pointer to Redirection struct holding the
             options (input, output, err, flag for append/clear).
     Returns:
-        int: 0 if success, -1 if failure.
+        `int`: 0 if success, -1 if failure.
 */
 int apply_redirections(const Redirection *redir) {
     int fd; // file descriptor
@@ -632,7 +632,7 @@ int apply_redirections(const Redirection *redir) {
     Executes an external command.
 
     Args:
-        char **args: The command (index 0) and its associated arguments.
+        `char **args`: The command (index 0) and its associated arguments.
 */
 void execute_external_command(char **args) {
 
