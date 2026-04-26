@@ -43,11 +43,42 @@ void print_prompt() {
         `char *buf`: A buffer to store the line of input.
         `size_t buflen`: The length of the buffer.
 */
+// int read_line(char *buf, size_t buflen) {
+//     if (fgets(buf, buflen, stdin) == NULL) return 0; // EOF
+//     size_t n = strlen(buf);
+//     if (n > 0 && buf[n - 1] == '\n') buf[n - 1] = '\0';
+//     return 1;
+// }
+// int read_line(char *buf, size_t buflen) {
+//     while (1) {
+//         if (fgets(buf, buflen, stdin) == NULL) {
+//             if (errno == EINTR) {
+//                 clearerr(stdin);
+//                 continue;
+//             }
+//             return 0; // real EOF or error
+//         }
+//         size_t n = strlen(buf);
+//         if (n > 0 && buf[n - 1] == '\n') buf[n - 1] = '\0';
+//         return 1;
+//     }
+// }
 int read_line(char *buf, size_t buflen) {
-    if (fgets(buf, buflen, stdin) == NULL) return 0; // EOF
-    size_t n = strlen(buf);
-    if (n > 0 && buf[n - 1] == '\n') buf[n - 1] = '\0';
-    return 1;
+    while (1) {
+        if (fgets(buf, buflen, stdin) == NULL) {
+            if (errno == EINTR) {
+                clearerr(stdin);
+                // a signal fired - run cleanup and reprint prompt
+                cleanup_done_jobs();
+                print_prompt();
+                continue;
+            }
+            return 0;
+        }
+        size_t n = strlen(buf);
+        if (n > 0 && buf[n - 1] == '\n') buf[n - 1] = '\0';
+        return 1;
+    }
 }
 
 

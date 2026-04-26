@@ -151,8 +151,16 @@ int add_job_phase4(pid_t pid, pid_t pgid, const char *cmd, int is_background) {
     }
 
     j->status = JOB_RUNNING; // set running
-    j->next = global_job_table.head; // push down in the list
-    global_job_table.head = j; // most recent job is head
+    j->next = NULL; // send to end of list
+    if (global_job_table.head == NULL) { // empty list, make head
+        global_job_table.head = j;
+    } else { // traverse list to end and append
+        Job *tail = global_job_table.head;
+        while (tail->next) {
+            tail = tail->next;
+        }
+        tail->next = j;
+    }
     global_job_table.total_jobs++; // added 1 job
 
     (void)pgid; 
@@ -305,8 +313,10 @@ void cleanup_done_jobs(void) {
 
     while (curr != NULL) {
         if (curr->status == JOB_DONE) {
-            Job *tmp = curr;
+            printf("[%d] Done %s\n", curr->job_id, curr->command_line);
+            fflush(stdout);
 
+            Job *tmp = curr;
             if (prev == NULL) {
                 global_job_table.head = curr->next;
             } else {
@@ -357,16 +367,8 @@ void handle_sigchld(int sig) {
 
         if (WIFEXITED(status) || WIFSIGNALED(status)) {
             job->status = JOB_DONE;
-            if (pid != foreground_pid) {
-                printf("\n[%d] Done %s\n", job->job_id, job->command_line);
-                fflush(stdout);
-            }
         } else if (WIFSTOPPED(status)) {
             job->status = JOB_STOPPED;
-            if (pid != foreground_pid) {
-                printf("\n[%d] Stopped %s\n", job->job_id, job->command_line);
-                fflush(stdout);
-            }
         }
     }
 }
@@ -398,7 +400,7 @@ void setup_signal_handlers(void) {
     // SIGCHILD - auto-reap background children
     sa.sa_handler = handle_sigchld;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+    sa.sa_flags = SA_NOCLDSTOP;
     sigaction(SIGCHLD, &sa, NULL);
 
     // SIGINT - forward Ctrl+C to foreground child
