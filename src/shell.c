@@ -205,6 +205,55 @@ void whitespace_quotes_escapes(char *dest, char *src) {
 
 
 /*
+    Wraps shell special characters outside of quotes with spaces so that
+    strtok() will split them as separate tokens.
+
+    Args:
+        `char *dst`: Destination string to put the command with wrapped ops.
+        `const char *src`: Source string to read command from.
+*/
+static void isolate_operators(char *dst, const char *src) {
+    char out[MAX_LINE];
+    int i = 0;
+    char in_quote = 0;
+
+    for (const char *p = src; *p; ++p) {
+        // track quote state
+        if ((*p == '\'' || *p == '"') && !in_quote) {
+            in_quote = *p;
+        } else if (*p == in_quote) {
+            in_quote = 0;
+        }
+
+        if (in_quote) {
+            out[i++] = *p;
+            continue;
+        }
+
+        // multi-char operators first (order matters)
+        if (p[0] == '>' && p[1] == '>') {       // >>
+            out[i++] = ' '; out[i++] = '>'; out[i++] = '>'; out[i++] = ' ';
+            ++p;
+        } else if (p[0] == '2' && p[1] == '>') { // 2>
+            out[i++] = ' '; out[i++] = '2'; out[i++] = '>'; out[i++] = ' ';
+            ++p;
+        } else if (p[0] == '<' && p[1] == '<') { // <<
+            out[i++] = ' '; out[i++] = '<'; out[i++] = '<'; out[i++] = ' ';
+            ++p;
+        } else if (*p == '>' || *p == '<' || *p == '|' || *p == '&') {
+            out[i++] = ' '; out[i++] = *p; out[i++] = ' ';
+        } else {
+            out[i++] = *p;
+        }
+    }
+
+    out[i] = '\0';
+    memcpy(dst, out, i + 1);
+}
+
+
+
+/*
     Parses a line of input sent from the bash terminal using strtok().
 
     Args:
@@ -218,6 +267,7 @@ char **parse_line(char *line) {
     // make copy of line because tokenizing destroys it
     char line_copy[MAX_LINE];
     make_copy_fill_quoted_whitespace(line_copy, line);
+    isolate_operators(line_copy, line_copy); // wrap redirect, pipe, etc with ' '
 
     // initiate tokenization process
     char *token = strtok(line_copy, " \t\n");
@@ -352,7 +402,7 @@ int execute_builtin_command(char **args) {
 
 
 /*
-    Determines whether the given string contains glob metacharacters.
+    Determines whether the given string contains glob metacharacters. Ignores those chars if quoted.
 
     Args:
         `const char *s`: A string to be checked for glob metacharacters.
@@ -360,6 +410,19 @@ int execute_builtin_command(char **args) {
         `int`: 1 if the string contains glob metacharacters, else 0.
 */
 static int has_glob_chars(const char *s) {
+
+    // check if this token is quoted
+    size_t len = strlen(s);
+    if (len >= 2) {
+        char first = s[0], last = s[len - 1];
+        if (first == '\'' && last == '\'') {
+            return 0; // if quoted, ignore glob chars
+        }
+        else if (first == '\"' && last == '\"') {
+            return 0; // same for ""
+        }
+    }
+
     // Minimal: *, ?, [ are glob metacharacters
     for (; *s; ++s) {
         if (*s == '*' || *s == '?' || *s == '[') return 1;
@@ -590,7 +653,7 @@ int apply_redirections(const Redirection *redir) {
             flags |= O_TRUNC;
         
         // create subdirs if needed
-        //mkdir_p(redir->output_file);
+        mkdir_p(redir->output_file);
         
         // potentially read/write/create, use standard perms if needed
         fd = open(redir->output_file, flags, 0644);
