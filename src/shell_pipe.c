@@ -19,127 +19,10 @@
 
 #include "shell.h"
 
-/* Execute a pipeline of commands */
-int execute_pipeline(Pipeline *p) {
-    if (!p || p->num_commands <= 0) return -1;
 
-    int num_pipes = p->num_commands - 1;
-    int pipes[MAX_ARGS][2];
-    pid_t pids[MAX_ARGS];
-    pid_t pgid = 0;
+/*
 
-    for (int i = 0; i < num_pipes; i++) {
-        if (pipe(pipes[i]) < 0) {
-            perror("pipe");
-            return -1;
-        }
-    }
-
-    for (int i = 0; i < p->num_commands; i++) {
-        pid_t pid = fork();
-
-        if (pid < 0) {
-            perror("fork");
-            return -1;
-        }
-
-        if (pid == 0) {
-            if (pgid == 0) {
-                setpgid(0, 0);
-            } else {
-                setpgid(0, pgid);
-            }
-
-            if (i > 0) {
-                dup2(pipes[i - 1][0], STDIN_FILENO);
-            }
-
-            if (i < p->num_commands - 1) {
-                dup2(pipes[i][1], STDOUT_FILENO);
-            }
-
-            for (int j = 0; j < num_pipes; j++) {
-                close(pipes[j][0]);
-                close(pipes[j][1]);
-            }
-
-            char line_copy[MAX_LINE];
-            strncpy(line_copy, p->commands[i], MAX_LINE - 1);
-            line_copy[MAX_LINE - 1] = '\0';
-
-            char **args = parse_line(line_copy);
-            if (args == NULL || args[0] == NULL) {
-                free_args(args);
-                _exit(1);
-            }
-
-            Redirection redir;
-            init_redirection(&redir);
-
-            char **expanded_args = expand_globs(args);
-            char **clean_args = strip_redirections(expanded_args, &redir);
-
-            if (apply_redirections(&redir) < 0) {
-                free_redirection(&redir);
-                free_args(args);
-                free_args(expanded_args);
-                free_args(clean_args);
-                _exit(1);
-            }
-
-            execvp(clean_args[0], clean_args);
-            fprintf(stderr, "myshell: %s: command not found\n", clean_args[0]);
-
-            free_redirection(&redir);
-            free_args(args);
-            free_args(expanded_args);
-            free_args(clean_args);
-            _exit(127);
-        }
-
-        if (pgid == 0) {
-            pgid = pid;
-        }
-        setpgid(pid, pgid);
-        pids[i] = pid;
-    }
-
-    for (int i = 0; i < num_pipes; i++) {
-        close(pipes[i][0]);
-        close(pipes[i][1]);
-    }
-
-    foreground_pid = pgid;
-    current_child_pid = pids[0];
-
-    if (isatty(STDIN_FILENO)) {
-        tcsetpgrp(STDIN_FILENO, pgid);
-    }
-
-    int status = 0;
-    int last_status = 0;
-
-    for (int i = 0; i < p->num_commands; i++) {
-        waitpid(pids[i], &status, WUNTRACED);
-        if (i == p->num_commands - 1) {
-            last_status = status;
-        }
-    }
-
-    if (isatty(STDIN_FILENO)) {
-        tcsetpgrp(STDIN_FILENO, shell_pid);
-    }
-
-    foreground_pid = 0;
-    current_child_pid = 0;
-
-    if (WIFEXITED(last_status)) {
-        return WEXITSTATUS(last_status);
-    }
-
-    return -1;
-}
-
+*/
 static char *trim_whitespace(char *s) {
     while (isspace((unsigned char)*s)) s++;
     if (*s == '\0') return s;
@@ -152,14 +35,183 @@ static char *trim_whitespace(char *s) {
     return s;
 }
 
+
+
+/*
+    Execute a pipeline of commands.
+
+    Args:
+        `Pipeline *p`: The pipeline to execute.
+    Returns:
+        `int`: -1 if error or empty pipeline.
+*/
+int execute_pipeline(Pipeline *p) {
+    if (!p || p->num_commands <= 0) return -1;
+
+    int last_status = 0;
+    int i = 0;
+
+    while (i < p->num_commands) {
+
+        // find the end of the current PIPE_BASIC segment
+        int seg_start = i;
+        int seg_end = i;
+        while (seg_end < p->num_commands - 1 && p->operators[seg_end] == PIPE_BASIC) {
+            seg_end++;
+        }
+
+        // check short-circuit from previous operator
+        if (i > 0) {
+            PipeOperator prev_op = p->operators[seg_start - 1];
+            if (prev_op == PIPE_AND && last_status != 0) { i = seg_end + 1; continue; }
+            if (prev_op == PIPE_OR  && last_status == 0) { i = seg_end + 1; continue; }
+        }
+
+        // execute seg_start..seg_end as a true pipe
+        int seg_len = seg_end - seg_start + 1;
+
+        // if single command, check for builtin first
+        if (seg_len == 1) {
+            char line_copy[MAX_LINE];
+            strncpy(line_copy, p->commands[seg_start], MAX_LINE - 1);
+            line_copy[MAX_LINE - 1] = '\0';
+            
+            char **args = parse_line(line_copy);
+
+            if (args && args[0] && is_builtin(args[0])) {
+                int ret = execute_builtin_command(args);
+                last_status = (ret == 0) ? 1 : 0; // invert: 0=exit means failure, 1=continue means success
+                free_args(args);
+                i = seg_end + 1;
+                continue;
+            }
+            free_args(args);
+        }
+
+        int num_pipes = seg_len - 1;
+        int pipes[MAX_ARGS][2];
+        pid_t pids[MAX_ARGS];
+        pid_t pgid = 0;
+
+        for (int j = 0; j < num_pipes; j++) {
+            if (pipe(pipes[j]) < 0) { perror("pipe"); return -1; }
+        }
+
+        for (int j = 0; j < seg_len; j++) {
+            pid_t pid = fork();
+            if (pid < 0) { perror("fork"); return -1; }
+
+            if (pid == 0) {
+                setpgid(0, pgid);
+
+                if (j > 0)            dup2(pipes[j-1][0], STDIN_FILENO);
+                if (j < seg_len - 1)  dup2(pipes[j][1],   STDOUT_FILENO);
+
+                for (int k = 0; k < num_pipes; k++) {
+                    close(pipes[k][0]);
+                    close(pipes[k][1]);
+                }
+
+                char line_copy[MAX_LINE];
+                strncpy(line_copy, p->commands[seg_start + j], MAX_LINE - 1);
+                line_copy[MAX_LINE - 1] = '\0';
+
+                char **args = parse_line(line_copy);
+                if (args == NULL || args[0] == NULL) { free_args(args); _exit(1); }
+
+                Redirection redir;
+                init_redirection(&redir);
+
+                char **expanded_args = expand_globs(args);
+                char **clean_args = strip_redirections(expanded_args, &redir);
+
+                if (apply_redirections(&redir) < 0) {
+                    free_redirection(&redir);
+                    free_args(args);
+                    free_args(expanded_args);
+                    free_args(clean_args);
+                    _exit(1);
+                }
+
+                execvp(clean_args[0], clean_args);
+                fprintf(stderr, "myshell: %s: command not found\n", clean_args[0]);
+
+                free_redirection(&redir);
+                free_args(args);
+                free_args(expanded_args);
+                free_args(clean_args);
+                _exit(127);
+            }
+
+            if (pgid == 0) pgid = pid;
+            setpgid(pid, pgid);
+            pids[j] = pid;
+        }
+
+        for (int j = 0; j < num_pipes; j++) {
+            close(pipes[j][0]);
+            close(pipes[j][1]);
+        }
+
+        foreground_pid = pgid;
+        current_child_pid = pids[0];
+        if (isatty(STDIN_FILENO)) tcsetpgrp(STDIN_FILENO, pgid);
+
+        int status = 0;
+        for (int j = 0; j < seg_len; j++) {
+            waitpid(pids[j], &status, WUNTRACED);
+        }
+        last_status = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+
+        if (isatty(STDIN_FILENO)) tcsetpgrp(STDIN_FILENO, shell_pid);
+        foreground_pid = 0;
+        current_child_pid = 0;
+
+        i = seg_end + 1;
+    }
+
+    return last_status;
+}
+
+
+const char *find_next_op(const char *str, PipeOperator *op_type) {
+    int in_single = 0, in_double = 0;
+
+    for (const char *p = str; *p; ++p) {
+        if (*p == '\'' && !in_double) in_single = !in_single;
+        else if (*p == '"' && !in_single) in_double = !in_double;
+        else if (!in_single && !in_double) {
+            if (p[0] == '&' && p[1] == '&') { *op_type = PIPE_AND;   return p; }
+            if (p[0] == '|' && p[1] == '|') { *op_type = PIPE_OR;    return p; }
+            if (p[0] == '|')                { *op_type = PIPE_BASIC; return p; }
+            if (p[0] == ';')                { *op_type = PIPE_SEQ;   return p; }
+        }
+    }
+    return NULL;
+}
+
+
+
+/*
+    Parses a pipeline execution plan from the entered line.
+
+    Args:
+        `char *line`: The input string.
+    Returns:
+        `Pipeline`: A struct containing the components of the pipeline to execute.
+*/
 Pipeline *parse_pipeline(char *line) {
+
+    // try to allocate a pipeline
     Pipeline *p = malloc(sizeof(Pipeline));
     if (!p) return NULL;
 
+    // allocate space
     p->commands = malloc(MAX_ARGS * sizeof(char *));
     p->operators = malloc(MAX_ARGS * sizeof(PipeOperator));
     p->num_commands = 0;
 
+    // memory failure, give up
     if (!p->commands || !p->operators) {
         free(p->commands);
         free(p->operators);
@@ -168,55 +220,51 @@ Pipeline *parse_pipeline(char *line) {
     }
 
     char *start = line;
-    const char *op;
 
-    while ((op = find_pipe_quoted(start)) != NULL) {
-        size_t len = (size_t)(op - start);
-        char *piece = malloc(len + 1);
-        if (!piece) {
-            free_pipeline(p);
-            return NULL;
+    // scan for pipe operators
+    while (*start) {
+
+        PipeOperator op_type;
+        const char *op = find_next_op(start, &op_type);
+        
+        if (op) {
+            size_t len = op - start;
+            char *piece = malloc(len + 1);
+            if (!piece) {
+                free_pipeline(p);
+                return NULL;
+            }
+
+            strncpy(piece, start, len);
+            piece[len] = '\0';
+
+            p->commands[p->num_commands] = strdup(trim_whitespace(piece));
+            free(piece);
+
+            p->operators[p->num_commands] = op_type;
+            p->num_commands++;
+
+            int op_len;
+            switch (op_type) {
+                case PIPE_BASIC: op_len = 1; break;
+                case PIPE_AND: op_len = 2; break;
+                case PIPE_OR: op_len = 2; break;
+                case PIPE_SEQ: op_len = 1; break;
+                default: op_len = 1; break;
+            }
+            start = (char *) op + op_len;
+        
+        } else {
+            p->commands[p->num_commands] = strdup(trim_whitespace(start));
+            p->num_commands++;
+            break;
         }
-
-        strncpy(piece, start, len);
-        piece[len] = '\0';
-
-        char *trimmed = trim_whitespace(piece);
-        p->commands[p->num_commands] = strdup(trimmed);
-        free(piece);
-
-        p->operators[p->num_commands] = PIPE_BASIC;
-        p->num_commands++;
-
-        start = (char *)op + 1;
     }
-
-    char *last = trim_whitespace(start);
-    p->commands[p->num_commands] = strdup(last);
-    p->num_commands++;
 
     return p;
 }
 
-const char *find_pipe_quoted(const char *str) {
-    int in_single = 0;
-    int in_double = 0;
 
-    for (const char *p = str; *p != '\0'; ++p) {
-        if (*p == '\'' && !in_double) {
-            in_single = !in_single;
-        } else if (*p == '"' && !in_single) {
-            in_double = !in_double;
-        } else if (*p == '|' && !in_single && !in_double) {
-            // ignore ||
-            if (*(p + 1) != '|') {
-                return p;
-            }
-        }
-    }
-
-    return NULL;
-}
 
 void free_pipeline(Pipeline *p) {
     if (!p) return;

@@ -60,7 +60,7 @@ typedef struct {
     int num_commands; // Number of commands
 } Pipeline;
 
-const char *find_pipe_quoted(const char *str);
+const char *find_next_op(const char *str, PipeOperator *op_type);
 Pipeline *parse_pipeline(char *line);
 void free_pipeline(Pipeline *p);
 int execute_pipeline(Pipeline *p);

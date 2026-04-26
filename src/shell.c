@@ -240,6 +240,12 @@ static void isolate_operators(char *dst, const char *src) {
         } else if (p[0] == '<' && p[1] == '<') { // <<
             out[i++] = ' '; out[i++] = '<'; out[i++] = '<'; out[i++] = ' ';
             ++p;
+        } else if (p[0] == '&' && p[1] == '&') { // &&
+            out[i++] = ' '; out[i++] = '&'; out[i++] = '&'; out[i++] = ' ';
+            ++p;
+        } else if (p[0] == '|' && p[1] == '|') { // ||
+            out[i++] = ' '; out[i++] = '|'; out[i++] = '|'; out[i++] = ' ';
+            ++p;
         } else if (*p == '>' || *p == '<' || *p == '|' || *p == '&') {
             out[i++] = ' '; out[i++] = *p; out[i++] = ' ';
         } else {
@@ -365,6 +371,7 @@ int execute_builtin_command(char **args) {
     else if (strcmp(command, "pwd") == 0) {
         char cwd[MAX_DIR_LEN]; // space to store cwd
         getcwd(cwd, sizeof(cwd));
+        fflush(stderr);
         printf("%s\n", cwd);
         fflush(stdout); // flush before restoring stdout
     }

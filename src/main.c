@@ -40,11 +40,31 @@ int main(void) {
         print_prompt();
 
         if (!read_line(line, sizeof(line))) break;
+
+        // continuation prompt for unclosed quotes
+        while (1) {
+            char in_quote = 0;
+            for (char *p = line; *p; ++p) {
+                if ((*p == '\'' || *p == '"') && !in_quote) in_quote = *p;
+                else if (*p == in_quote) in_quote = 0;
+            }
+            if (!in_quote) break;
+
+            printf("> ");
+            fflush(stdout);
+
+            size_t len = strlen(line);
+            if (len + 1 >= sizeof(line)) break;
+            line[len] = '\n';
+            if (!read_line(line + len + 1, sizeof(line) - len - 1)) break;
+        }
+
         if (line[0] == '\0') continue;
 
         int is_background = parse_background_operator(line);
 
-        if (find_pipe_quoted(line) != NULL) {
+        PipeOperator op_type;
+        if (find_next_op(line, &op_type) != NULL) {
             Pipeline *p = parse_pipeline(line);
             if (p != NULL) {
                 if (!is_background) {
