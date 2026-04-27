@@ -1,12 +1,12 @@
 /*************************************************************************
  Authors:        Dan DeGenaro, Tian Li (Net IDs: drd92, tl995)
  Date:           Feb 27, 2026
- Last Updated:   Feb 27, 2026
+ Last Updated:   Apr 27, 2026
  Purpose:        Runs REPL loop for bash emulation program.
  Program:        main.c
  Platform:       Linux, Solaris, BSD
  gcc Version:    gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-28)
- Version:        1.0
+ Version:        4.0
 *************************************************************************/
 
 #include <stdio.h>
@@ -32,7 +32,7 @@ int main(void) {
     init_job_table(); // create a job table for bg processes
     setup_signal_handlers(); // 
 
-    printf("\nmyshell 1.0\n\n");
+    printf("\nmyshell 4.0\n\n");
 
     while (exit_status) {
         cleanup_done_jobs();

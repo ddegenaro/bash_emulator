@@ -1,12 +1,12 @@
 /*************************************************************************
  Authors:        Tian Li, Dan DeGenaro (Net IDs: tl995, drd92)
  Date:           Apr 9, 2026
- Last Updated:   Apr 25, 2026
+ Last Updated:   Apr 27, 2026
  Purpose:        Implements pipe functionalities.
  Program:        shell_pipe.c
  Platform:       Linux, Solaris, BSD
  gcc Version:    gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-28)
- Version:        1.0
+ Version:        4.0
 *************************************************************************/
 #include <string.h>
 #include <stdlib.h>

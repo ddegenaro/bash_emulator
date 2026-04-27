@@ -1,12 +1,12 @@
 /*************************************************************************
  Authors:        Tian Li, Dan DeGenaro (Net IDs: tl995, drd92)
  Date:           Apr 9, 2026
- Last Updated:   Apr 25, 2026
+ Last Updated:   Apr 27, 2026
  Purpose:        Implements main functionalities for bash emulation program.
  Program:        shell.c
  Platform:       Linux, Solaris, BSD
  gcc Version:    gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-28)
- Version:        1.0
+ Version:        4.0
 *************************************************************************/
 
 #include <ctype.h>
@@ -313,7 +313,7 @@ void cleanup_done_jobs(void) {
 
     while (curr != NULL) {
         if (curr->status == JOB_DONE) {
-            printf("[%d] Done %s\n", curr->job_id, curr->command_line);
+            printf("\n[%d] Done %s\n", curr->job_id, curr->command_line);
             fflush(stdout);
 
             Job *tmp = curr;

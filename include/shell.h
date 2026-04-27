@@ -1,12 +1,12 @@
 /*************************************************************************
  Authors:        Dan DeGenaro, Tian Li (Net IDs: drd92, tl995)
  Date:           Feb 27, 2026
- Last Updated:   Mar 22, 2026
+ Last Updated:   Apr 27, 2026
  Purpose:        Exports functions from shell.c.
  Program:        shell.h
  Platform:       Linux, Solaris, BSD
  gcc Version:    gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-28)
- Version:        1.0
+ Version:        4.0
 *************************************************************************/
 
 #ifndef SHELL_H
