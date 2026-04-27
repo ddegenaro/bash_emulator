@@ -95,6 +95,9 @@ Job *find_job_by_id(int job_id) {
     Job *curr = global_job_table.head;
     while (curr != NULL) {
         if (curr->job_id == job_id) return curr;
+        if (job_id < 0 && curr->next == NULL) {
+            return curr;
+        }
         curr = curr->next;
     }
     return NULL; // not found
@@ -234,7 +237,7 @@ void builtin_fg(int job_id) {
     // find the job
     Job *job = find_job_by_id(job_id);
     if (job == NULL) { // not found
-        printf("myshell: fg: job not found\n");
+        printf("myshell: fg: job %d not found\n", job_id);
         return;
     }
 

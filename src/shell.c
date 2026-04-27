@@ -411,7 +411,7 @@ int execute_builtin_command(char **args) {
     }
     else if (strcmp(command, "fg") == 0) {
         if (args[1] == NULL) {
-            printf("myshell: fg: usage: fg %%jobid\n");
+            builtin_fg(-1);
         } else {
             int job_id = 0;
             if (args[1][0] == '%') job_id = atoi(args[1] + 1);
@@ -421,7 +421,7 @@ int execute_builtin_command(char **args) {
     }
     else if (strcmp(command, "bg") == 0) {
         if (args[1] == NULL) {
-            printf("myshell: bg: usage: bg %%jobid\n");
+            builtin_bg(-1);
         } else {
             int job_id = 0;
             if (args[1][0] == '%') job_id = atoi(args[1] + 1);
