@@ -245,30 +245,37 @@ void builtin_fg(int job_id) {
     printf("%s\n", job->command_line);
     fflush(stdout);
 
+    // pid of job becomes pgid
     pid_t pgid = job->pid;
 
+    // set stdin to this process
     if (tcsetpgrp(STDIN_FILENO, pgid) < 0) {
         perror("tcsetpgrp");
         return;
     }
 
+    // set fg process to this process
     foreground_pid = pgid;
     current_child_pid = job->pid;
 
+    // 
     if (job->status == JOB_STOPPED) {
         kill(-pgid, SIGCONT);
     }
     job->status = JOB_RUNNING;
 
+    // wait for the new fg job to complete
     int status;
     if (waitpid(job->pid, &status, WUNTRACED) < 0) {
         perror("waitpid");
     }
 
+    // set stdin back to the shell
     tcsetpgrp(STDIN_FILENO, shell_pid);
-    foreground_pid = 0;
+    foreground_pid = 0; // put shell back into fg
     current_child_pid = 0;
-
+    
+    // if job exited or sent a signal, set to done, or to stopped if "stopped"
     if (WIFEXITED(status) || WIFSIGNALED(status)) {
         job->status = JOB_DONE;
     } else if (WIFSTOPPED(status)) {
