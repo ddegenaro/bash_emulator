@@ -20,16 +20,23 @@
 #include "shell.h"
 
 
-/*
 
+/*
+    Removes whitespace at the end in place.
+
+    Args:
+        `char *s`: The string to trim.
+
+    Returns:
+        `static char *`: The same string, trimmed.
 */
 static char *trim_whitespace(char *s) {
-    while (isspace((unsigned char)*s)) s++;
-    if (*s == '\0') return s;
+    while (isspace((unsigned char)*s)) s++; // move to first non-space
+    if (*s == '\0') return s; // if all whitespace, return just the '\0'
 
-    char *end = s + strlen(s) - 1;
+    char *end = s + strlen(s) - 1; // move from end now
     while (end > s && isspace((unsigned char)*end)) {
-        *end = '\0';
+        *end = '\0'; // stick '\0' after last non-whitespace
         end--;
     }
     return s;

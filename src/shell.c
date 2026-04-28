@@ -1,7 +1,7 @@
 /*************************************************************************
  Authors:        Dan DeGenaro, Tian Li (Net IDs: drd92, tl995)
  Date:           Feb 27, 2026
- Last Updated:   Apr 27, 2026
+ Last Updated:   Apr 28, 2026
  Purpose:        Implements main functionalities for bash emulation program.
  Program:        shell.c
  Platform:       Linux, Solaris, BSD
@@ -25,6 +25,8 @@
 
 const char *builtins[] = {"exit", "cd", "pwd", "jobs", "fg", "bg", NULL};
 
+
+
 /*
     Prints the bash prompt.
 */
@@ -43,26 +45,6 @@ void print_prompt() {
         `char *buf`: A buffer to store the line of input.
         `size_t buflen`: The length of the buffer.
 */
-// int read_line(char *buf, size_t buflen) {
-//     if (fgets(buf, buflen, stdin) == NULL) return 0; // EOF
-//     size_t n = strlen(buf);
-//     if (n > 0 && buf[n - 1] == '\n') buf[n - 1] = '\0';
-//     return 1;
-// }
-// int read_line(char *buf, size_t buflen) {
-//     while (1) {
-//         if (fgets(buf, buflen, stdin) == NULL) {
-//             if (errno == EINTR) {
-//                 clearerr(stdin);
-//                 continue;
-//             }
-//             return 0; // real EOF or error
-//         }
-//         size_t n = strlen(buf);
-//         if (n > 0 && buf[n - 1] == '\n') buf[n - 1] = '\0';
-//         return 1;
-//     }
-// }
 int read_line(char *buf, size_t buflen) {
     while (1) {
         if (fgets(buf, buflen, stdin) == NULL) {
@@ -729,6 +711,8 @@ int apply_redirections(const Redirection *redir) {
 
     return 0;
 }
+
+
 
 /*
     Executes an external command.

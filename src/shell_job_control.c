@@ -1,7 +1,7 @@
 /*************************************************************************
  Authors:        Tian Li, Dan DeGenaro (Net IDs: tl995, drd92)
  Date:           Apr 9, 2026
- Last Updated:   Apr 27, 2026
+ Last Updated:   Apr 28, 2026
  Purpose:        Implements main functionalities for bash emulation program.
  Program:        shell.c
  Platform:       Linux, Solaris, BSD
@@ -310,23 +310,30 @@ void builtin_bg(int job_id) {
         return;
     }
 
-
+    // submit continue signal to the job
     kill(-job->pid, SIGCONT);
     job->status = JOB_RUNNING;
     printf("[%d] %d\n", job->job_id, job->pid);
     fflush(stdout);
 }
 
+
+
+/*
+    Clean up any done jobs by removing them from the table and printing
+        notifications.
+*/
 void cleanup_done_jobs(void) {
+
+    // iterate table
     Job *curr = global_job_table.head;
     Job *prev = NULL;
-
     while (curr != NULL) {
-        if (curr->status == JOB_DONE) {
+        if (curr->status == JOB_DONE) { // print done jobs
             printf("\n[%d] Done %s\n", curr->job_id, curr->command_line);
             fflush(stdout);
 
-            Job *tmp = curr;
+            Job *tmp = curr; // remove from list
             if (prev == NULL) {
                 global_job_table.head = curr->next;
             } else {
@@ -337,13 +344,18 @@ void cleanup_done_jobs(void) {
             free(tmp->command_line);
             free(tmp);
             global_job_table.total_jobs--;
-        } else {
+        } else { // if not a done job, just move to the next one
             prev = curr;
             curr = curr->next;
         }
     }
 }
 
+
+
+/*
+    Free up the entire job table.
+*/
 void free_job_table(void) {
     Job *curr = global_job_table.head;
     while (curr != NULL) {
@@ -360,7 +372,7 @@ void free_job_table(void) {
 
 
 /*
-    Handles SIGCHILD.
+    Handles child signal.
 
     Args:
         `int sig`: The signal.
@@ -383,22 +395,40 @@ void handle_sigchld(int sig) {
     }
 }
 
+
+
+/*
+    Handles interrupt signal.
+
+    Args:
+        `int sig`: The signal.
+*/
 void handle_sigint(int sig) {
     (void)sig;
-    if (foreground_pid != 0) {
+    if (foreground_pid != 0) { // forward to fg process
         kill(-foreground_pid, SIGINT);
     }
 }
 
+
+
+/*
+    Handles stop signal.
+
+    Args:
+        `int sig`: The signal.
+*/
 void handle_sigtstp(int sig) {
     (void)sig;
-    if (foreground_pid != 0) {
+    if (foreground_pid != 0) { // forward to fg process
         kill(-foreground_pid, SIGTSTP);
     }
 }
 
-/*
 
+
+/*
+    Sets up handlers for all important signals that could be sent via the terminal.
 */
 void setup_signal_handlers(void) {
     struct sigaction sa;
@@ -429,6 +459,11 @@ void setup_signal_handlers(void) {
     signal(SIGPIPE, SIG_IGN);
 }
 
+
+
+/*
+    Restores all the signal handlers that were overwritten.
+*/
 void restore_signal_handlers(void) {
     signal(SIGCHLD, SIG_DFL);
     signal(SIGINT, SIG_DFL);

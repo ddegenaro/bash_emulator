@@ -1,7 +1,7 @@
 /*************************************************************************
  Authors:        Dan DeGenaro, Tian Li (Net IDs: drd92, tl995)
  Date:           Feb 27, 2026
- Last Updated:   Apr 27, 2026
+ Last Updated:   Apr 28, 2026
  Purpose:        Runs REPL loop for bash emulation program.
  Program:        main.c
  Platform:       Linux, Solaris, BSD
@@ -66,8 +66,9 @@ int main(void) {
         strncpy(line_copy_semi, line, MAX_LINE - 1);
         line_copy_semi[MAX_LINE - 1] = '\0';
 
+        // set up tokenization on sequential op
         char *strtok_state;
-        char *segment = strtok_r(line_copy_semi, ";", &strtok_state); // set up tokenization on sequential op
+        char *segment = strtok_r(line_copy_semi, ";", &strtok_state);
         while (segment != NULL) {
 
             // trim whitespace, move on if nothing left
