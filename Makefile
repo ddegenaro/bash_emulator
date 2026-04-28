@@ -84,7 +84,7 @@ $(OBJ_DIR):
 $(EXE_DIR):
 	mkdir -p $(EXE_DIR)
 run:
-	$(TARGET)
+	@./$(TARGET) /dev/tty
 
 # Clean rule
 clean:

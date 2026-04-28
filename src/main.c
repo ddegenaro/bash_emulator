@@ -26,6 +26,7 @@
         `int`: 0 on successful exit.
 */
 int main(void) {
+
     int exit_status = 1;
     char line[MAX_LINE]; // buffer to be read from terminal
 

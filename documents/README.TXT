@@ -37,7 +37,7 @@ Installation and set-up:
 
         - `make rebuild` to execute the `make clean` and `make all` behaviors.
 
-        - `make run` to run the executable.
+        - `./application/myshell` to run the executable.
 
 
 
