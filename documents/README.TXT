@@ -43,4 +43,19 @@ Installation and set-up:
 
 Expected behavior:
 
+    Works the same as bash, except missing some signals such as arrow key navigation and tab to
+        autocomplete.
+    Some print messages may look a bit different as well, notably from the `fg`, `bg`, and `jobs`
+        commands. The prompt is also more simplistic, and the hello/goodbye messages are as well.
     
+    Implements from scratch:
+        - `exit`: Exits the program.
+        - `cd`: Changes directory.
+        - `pwd`: Displays the current directory path.
+        - `jobs`: Displays all jobs running in the background.
+        - `fg`: Moves a job to the foreground (integer ID or %n for n-th recent job).
+        - `bg`: Works like `fg` but moves jobs to the background.
+        - Ctrl+C to terminate the foreground job.
+        - Ctrl+Z to stop the foreground job.
+    
+    Implements any other program on the execution path as a child process.
