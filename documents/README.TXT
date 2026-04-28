@@ -1,18 +1,25 @@
 Authors:        Dan DeGenaro, Tian Li (Net ID: drd92, tl995)
 Date:           Feb 27, 2026
-Last Updated:   Feb 27, 2026
+Last Updated:   Apr 28, 2026
 Purpose:        Bash emulator project.
 Platform:       Linux, Solaris, BSD
 gcc Version:    gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-28)
-Version:        1.0
+Version:        4.0
+
+
+
 File structure:          
                 bash_emulator/
                     Documents/
                         README.txt (THIS FILE)
                     include/
-                        .h
+                        shell.h
                     src/
-                        .c
+                        main.c
+                        shell_job_control.c
+                        shell_pipe.c
+                        shell.c
+                    .gitignore
                     Makefile
 
 
