@@ -95,7 +95,7 @@ Job *find_job_by_id(int job_id) {
     Job *curr = global_job_table.head;
     while (curr != NULL) {
         if (curr->job_id == job_id) return curr;
-        if (job_id < 0 && curr->next == NULL) {
+        if (job_id <= 0 && curr->next == NULL) {
             return curr;
         }
         curr = curr->next;
