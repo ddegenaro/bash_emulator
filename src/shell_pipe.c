@@ -95,40 +95,50 @@ int execute_pipeline(Pipeline *p) {
             free_args(args);
         }
 
+        // need a link between each segment
         int num_pipes = seg_len - 1;
         int pipes[MAX_ARGS][2];
         pid_t pids[MAX_ARGS];
         pid_t pgid = 0;
 
+        // allocate pipe between each adjacent pair of segments
         for (int j = 0; j < num_pipes; j++) {
             if (pipe(pipes[j]) < 0) { perror("pipe"); return -1; }
         }
 
+        // create forks for each segment
         for (int j = 0; j < seg_len; j++) {
             pid_t pid = fork();
             if (pid < 0) { perror("fork"); return -1; }
 
+            // if it's our turn
             if (pid == 0) {
                 setpgid(0, pgid);
 
+                // redirect piped output and input
                 if (j > 0)            dup2(pipes[j-1][0], STDIN_FILENO);
                 if (j < seg_len - 1)  dup2(pipes[j][1],   STDOUT_FILENO);
 
+                // close pipes now they are used
                 for (int k = 0; k < num_pipes; k++) {
                     close(pipes[k][0]);
                     close(pipes[k][1]);
                 }
 
+                // copy next command
                 char line_copy[MAX_LINE];
                 strncpy(line_copy, p->commands[seg_start + j], MAX_LINE - 1);
                 line_copy[MAX_LINE - 1] = '\0';
 
+                // parse it
                 char **args = parse_line(line_copy);
                 if (args == NULL || args[0] == NULL) { free_args(args); _exit(1); }
 
+                // init redirections
                 Redirection redir;
                 init_redirection(&redir);
 
+                // globs and redirect parsing
                 char **expanded_args = expand_globs(args);
                 char **clean_args = strip_redirections(expanded_args, &redir);
 
@@ -140,9 +150,11 @@ int execute_pipeline(Pipeline *p) {
                     _exit(1);
                 }
 
+                // execute command
                 execvp(clean_args[0], clean_args);
                 fprintf(stderr, "myshell: %s: command not found\n", clean_args[0]);
 
+                // free
                 free_redirection(&redir);
                 free_args(args);
                 free_args(expanded_args);
