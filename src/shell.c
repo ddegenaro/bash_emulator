@@ -297,14 +297,18 @@ char **parse_line(char *line) {
     args = (char **) malloc(MAX_ARGS * sizeof(char *));
 
     while (token != NULL && num_args < MAX_ARGS - 1) {
-        // malloc enough space to copy token to args array
+        // allocate space for the token
         args[num_args] = malloc(strlen(token) + 1);
+        if (!args[num_args]) {
+            perror("malloc");
+            exit(1);
+        }
 
-        // copy token to args array, remove quoting and re-introduce whitespace
-        whitespace_quotes_escapes(args[num_args], token);
-        ++num_args; // count arg
+        // copy token (since you removed whitespace_quotes_escapes)
+        strcpy(args[num_args], token);
 
-        token = strtok(NULL, " \t\n"); // get next token
+        num_args++;  // count arg
+        token = strtok(NULL, " \t\n");
     }
 
     // terminate with NULL for later readability

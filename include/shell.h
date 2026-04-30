@@ -23,6 +23,7 @@ int is_builtin(const char *command);
 int execute_builtin_command(char **args);
 void execute_external_command(char **args);
 void free_args(char **args);
+void whitespace_quotes_escapes(char *dest, char *src);
 
 #define MAX_LINE 256
 #define MAX_ARGS 20

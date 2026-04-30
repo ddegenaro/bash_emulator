@@ -142,6 +142,14 @@ int main(void) {
                         char **expanded_args = expand_globs(clean_args);
                         free_args(clean_args);
 
+                        for (int i = 0; expanded_args[i] != NULL; i++) {
+                            char tmp[MAX_LINE];
+                            whitespace_quotes_escapes(tmp, expanded_args[i]);
+
+                            free(expanded_args[i]);
+                            expanded_args[i] = strdup(tmp);
+                        }
+
                         // failure to redirect
                         if (apply_redirections(&redir) < 0) {
                             free_redirection(&redir);

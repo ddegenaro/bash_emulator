@@ -143,8 +143,18 @@ int execute_pipeline(Pipeline *p , int is_background) {
                 init_redirection(&redir);
 
                 // globs and redirect parsing
+
                 char **expanded_args = expand_globs(args);
                 char **clean_args = strip_redirections(expanded_args, &redir);
+
+
+                for (int i = 0; expanded_args[i] != NULL; i++) {
+                    char tmp[MAX_LINE];
+                    whitespace_quotes_escapes(tmp, expanded_args[i]);
+
+                    free(expanded_args[i]);
+                    expanded_args[i] = strdup(tmp);
+                }
 
                 if (apply_redirections(&redir) < 0) {
                     free_redirection(&redir);
