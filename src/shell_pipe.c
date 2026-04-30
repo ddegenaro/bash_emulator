@@ -116,7 +116,7 @@ int execute_pipeline(Pipeline *p) {
             if (pid == 0) { // need to restore everything but sigchld
                 // signal(SIGINT, SIG_DFL);
                 // signal(SIGTSTP, SIG_DFL);
-                // signal(SIGPIPE, SIG_DFL);
+                signal(SIGPIPE, SIG_DFL);
                 setpgid(0, pgid);
 
                 // redirect piped output and input

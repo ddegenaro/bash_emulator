@@ -207,6 +207,9 @@ static const char *job_status_string(JobStatus status) {
 */
 void builtin_jobs(void) {
 
+    printf("SIGPIPE disposition: %s\n",
+    signal(SIGPIPE, SIG_IGN) == SIG_IGN ? "IGN" : "DFL");
+
     // start from head of table's list
     Job *curr = global_job_table.head;
 
