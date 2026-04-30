@@ -181,9 +181,15 @@ int execute_pipeline(Pipeline *p , int is_background) {
             // Background job:
             // Do NOT take control of the terminal and do NOT wait.
 
+            char pipeline_name[MAX_LINE] = "";
+            for (int j = 0; j < seg_len; j++) {
+                if (j > 0) strncat(pipeline_name, " | ", MAX_LINE - strlen(pipeline_name) - 1);
+                strncat(pipeline_name, p->commands[seg_start + j], MAX_LINE - strlen(pipeline_name) - 1);
+            }
+
             // Store this pipeline as a job using its PGID (first child PID)
             // Both arguments are pgid because the whole pipeline shares one process group
-            add_job_phase4(pgid, pgid, p->commands[seg_start], 1);
+            add_job_phase4(pgid, pgid, pipeline_name, 1);
 
             // For background jobs, we return immediately to the prompt
             // so just mark last_status as success

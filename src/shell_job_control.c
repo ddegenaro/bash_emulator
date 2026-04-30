@@ -281,7 +281,7 @@ void builtin_fg(int job_id) {
         job->status = JOB_DONE;
     } else if (WIFSTOPPED(status)) {
         job->status = JOB_STOPPED;
-        printf("\n[%d] Stopped %s\n", job->job_id, job->command_line);
+        printf("[%d] Stopped %s\n", job->job_id, job->command_line);
         fflush(stdout);
     }
 }
