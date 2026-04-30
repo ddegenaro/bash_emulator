@@ -138,6 +138,7 @@ Job *find_job_by_pid(pid_t pid) {
         `int`: The job ID assigned if successful, else -1.
 */
 int add_job_phase4(pid_t pid, pid_t pgid, const char *cmd, int is_background) {
+
     Job *j = malloc(sizeof(Job)); // allocate memory for a job struct in the table
     if (j == NULL) { // handle OOM
         perror("malloc");
