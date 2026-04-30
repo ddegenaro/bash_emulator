@@ -13,6 +13,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,8 +112,11 @@ int execute_pipeline(Pipeline *p) {
             pid_t pid = fork();
             if (pid < 0) { perror("fork"); return -1; }
 
-            // if it's our turn
-            if (pid == 0) {
+            // if we're the child process
+            if (pid == 0) { // need to restore everything but sigchld
+                signal(SIGINT, SIG_DFL);
+                signal(SIGTSTP, SIG_DFL);
+                signal(SIGPIPE, SIG_DFL);
                 setpgid(0, pgid);
 
                 // redirect piped output and input

@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/types.h>
 
 #include "shell.h"
@@ -95,13 +96,13 @@ int main(void) {
                     if (!is_background) { // not bg, do pipeline
                         execute_pipeline(p);
                     } else {
-                        pid_t pid = fork(); // bg so fork
-                        if (pid == 0) { // shell, just go
+                        pid_t pid = fork();
+                        if (pid == 0) { // child process, execute pipeline and free when done
                             setpgid(0, 0);
                             execute_pipeline(p);
                             free_pipeline(p);
                             exit(EXIT_SUCCESS);
-                        } else if (pid > 0) { // add job if not shell itself
+                        } else if (pid > 0) { // shell gets pid > 0, adds job
                             setpgid(pid, pid);
                             add_job_phase4(pid, pid, seg, 1);
                         } else { // otherwise a problem occurred when forking
