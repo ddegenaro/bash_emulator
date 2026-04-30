@@ -53,7 +53,7 @@ static char *trim_whitespace(char *s) {
     Returns:
         `int`: -1 if error or empty pipeline.
 */
-int execute_pipeline(Pipeline *p) {
+int execute_pipeline(Pipeline *p , int is_background) {
     if (!p || p->num_commands <= 0) return -1;
 
     int last_status = 0;
@@ -175,20 +175,55 @@ int execute_pipeline(Pipeline *p) {
             close(pipes[j][0]);
             close(pipes[j][1]);
         }
+        
+        
+        if (is_background) {
+            // Background job:
+            // Do NOT take control of the terminal and do NOT wait.
 
-        foreground_pid = pgid;
-        current_child_pid = pids[0];
-        if (isatty(STDIN_FILENO)) tcsetpgrp(STDIN_FILENO, pgid);
+            // Store this pipeline as a job using its PGID (first child PID)
+            // Both arguments are pgid because the whole pipeline shares one process group
+            add_job_phase4(pgid, pgid, p->commands[seg_start], 1);
 
-        int status = 0;
-        for (int j = 0; j < seg_len; j++) {
-            waitpid(pids[j], &status, WUNTRACED);
+            // For background jobs, we return immediately to the prompt
+            // so just mark last_status as success
+            last_status = 0;
+
+        } else {
+            // Foreground job:
+            // This pipeline should take control of the terminal and block the shell
+
+            // Track which process group is currently in the foreground
+            // so signal handlers (Ctrl+C, Ctrl+Z) know where to send signals
+            foreground_pid = pgid;
+
+            // Optionally track first child PID (used in some implementations)
+            current_child_pid = pids[0];
+
+            // Give terminal control to the pipeline's process group
+            // so keyboard signals go to the pipeline instead of the shell
+            if (isatty(STDIN_FILENO))
+                tcsetpgrp(STDIN_FILENO, pgid);
+
+            int status = 0;
+
+            // Wait for all processes in the pipeline to finish or stop
+            // WUNTRACED allows us to detect Ctrl+Z (stopped processes)
+            for (int j = 0; j < seg_len; j++) {
+                waitpid(pids[j], &status, WUNTRACED);
+            }
+
+            // Save exit status (typically from the last command)
+            last_status = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+
+            // After the pipeline finishes, give terminal control back to the shell
+            if (isatty(STDIN_FILENO))
+                tcsetpgrp(STDIN_FILENO, shell_pid);
+
+            // Clear foreground tracking since no job is running now
+            foreground_pid = 0;
+            current_child_pid = 0;
         }
-        last_status = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-
-        if (isatty(STDIN_FILENO)) tcsetpgrp(STDIN_FILENO, shell_pid);
-        foreground_pid = 0;
-        current_child_pid = 0;
 
         i = seg_end + 1;
     }

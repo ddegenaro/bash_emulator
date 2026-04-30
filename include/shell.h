@@ -63,7 +63,7 @@ typedef struct {
 const char *find_next_op(const char *str, PipeOperator *op_type);
 Pipeline *parse_pipeline(char *line);
 void free_pipeline(Pipeline *p);
-int execute_pipeline(Pipeline *p);
+int execute_pipeline(Pipeline *p, int is_background);
 
 
 //job control

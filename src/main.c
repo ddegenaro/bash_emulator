@@ -93,22 +93,10 @@ int main(void) {
             if (find_next_op(seg, &op_type) != NULL) {
                 Pipeline *p = parse_pipeline(seg);
                 if (p != NULL) {
-                    if (!is_background) { // not bg, do pipeline
-                        execute_pipeline(p);
-                    } else {
-                        pid_t pid = fork();
-                        if (pid == 0) { // child process, execute pipeline and free when done
-                            setpgid(0, 0);
-                            execute_pipeline(p);
-                            free_pipeline(p);
-                            exit(EXIT_SUCCESS);
-                        } else if (pid > 0) { // shell gets pid > 0, adds job
-                            setpgid(pid, pid);
-                            add_job_phase4(pid, pid, seg, 1);
-                        } else { // otherwise a problem occurred when forking
-                            perror("fork");
-                        }
-                    }
+                    /* Do not fork wrapper for background pipeline. 
+                        Let execute_pipeline create the real child processes.
+                        Store pgid, not wrapper pid.*/
+                    execute_pipeline(p, is_background);
                     free_pipeline(p);
                 }
                 segment = strtok_r(NULL, ";", &strtok_state);
